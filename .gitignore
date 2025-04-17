@@ -1,0 +1,5 @@
+myenv
+.env
+captures
+docker-compose.yaml
+
