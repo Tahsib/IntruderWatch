@@ -108,7 +108,7 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
                             logging.info("Frame sent to queue.")
                         else:
                             logging.error("Frame encoding failed!!")
-                        time.sleep(0.2)  # Adjust frame rate
+                        #time.sleep(0.2)  # Adjust frame rate
                     else:
                         logging.error(
                             "Failed to read frame. Reinitializing capture...")
