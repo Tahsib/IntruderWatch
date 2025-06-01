@@ -63,7 +63,7 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
 
     while True:
         try:
-            cap = cv2.VideoCapture(rtsp_url)
+            cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
             if not cap.isOpened():
                 logging.error(
                     "Failed to open stream. Retrying in 5 seconds...")
