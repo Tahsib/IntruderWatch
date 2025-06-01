@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 import os
 import time
 import pika
@@ -77,11 +78,14 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
                 if is_within_time_frame(start_time, end_time):
                     ret, frame = cap.read()
                     if ret and frame is not None:
-                        _, buffer = cv2.imencode(
-                            '.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
-                        channel.basic_publish(exchange='', routing_key=queue_name, body=buffer.tobytes(
-                        ), properties=pika.BasicProperties(delivery_mode=2))
-                        logging.info("Frame sent to queue.")
+                        success, img_encode = cv2.imencode('.png', frame)
+                        if success:
+                            data_encode = np.array(img_encode) 
+                            byte_data = data_encode.tobytes()
+                            channel.basic_publish(exchange='', routing_key=queue_name, body=byte_data, properties=pika.BasicProperties(delivery_mode=2))
+                            logging.info("Frame sent to queue.")
+                        else:
+                            logging.error("Frame encoding failed!!")
                         time.sleep(0.1)  # Adjust frame rate
                     else:
                         logging.error(
