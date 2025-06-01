@@ -4,6 +4,9 @@ import pika
 import time
 import os
 import logging
+import hashlib
+import base64
+import json
 from datetime import datetime
 
 # Configure logging
@@ -104,8 +107,18 @@ def consume_frames(queue_name):
 
     def callback(ch, method, properties, body):
         try:
-            frame = np.frombuffer(body, dtype=np.uint8)
-            frame = cv2.imdecode(frame, cv2.IMREAD_COLOR)
+            payload = json.loads(body.decode('utf-8'))
+            byte_data = base64.b64decode(payload["image"])
+            expected_hash = payload["hash"]
+
+            actual_hash = hashlib.sha256(byte_data).hexdigest()
+            if actual_hash != expected_hash:
+                logging.warning("Hash mismatch! Frame may be corrupted.")
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+                return
+            
+            frame_np = np.frombuffer(byte_data, dtype=np.uint8)
+            frame = cv2.imdecode(frame_np, cv2.IMREAD_COLOR)
             if frame is not None:
                 # Processing frame...
                 logging.info(">->->->->->->->")

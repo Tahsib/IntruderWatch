@@ -4,6 +4,10 @@ import os
 import time
 import pika
 import logging
+import hashlib
+import base64
+import json
+import uuid
 from datetime import datetime
 
 # Configure logging
@@ -78,11 +82,29 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
                 if is_within_time_frame(start_time, end_time):
                     ret, frame = cap.read()
                     if ret and frame is not None:
+                        ## Save images to test
+                        # timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        # date_only = timestamp.split()[0]
+                        # date_directory = os.path.join("captures", date_only)
+                        # if not os.path.exists(date_directory):
+                        #     os.makedirs(date_directory)
+                        #     logging.info(f"{date_directory} directory created!")
+
+                        # # Save the frame with detected human
+                        # filename = f"{date_directory}/cap_{timestamp}.jpg"
+                        # cv2.imwrite(filename, frame)
+
                         success, img_encode = cv2.imencode('.png', frame)
                         if success:
                             data_encode = np.array(img_encode) 
                             byte_data = data_encode.tobytes()
-                            channel.basic_publish(exchange='', routing_key=queue_name, body=byte_data, properties=pika.BasicProperties(delivery_mode=2))
+                            hash_val = hashlib.sha256(byte_data).hexdigest()
+                            payload = {
+                                "hash": hash_val,
+                                "image": base64.b64encode(byte_data).decode('utf-8')
+                            }
+                            message = json.dumps(payload)
+                            channel.basic_publish(exchange='', routing_key=queue_name, body=message.encode('utf-8'), properties=pika.BasicProperties(delivery_mode=2))
                             logging.info("Frame sent to queue.")
                         else:
                             logging.error("Frame encoding failed!!")
