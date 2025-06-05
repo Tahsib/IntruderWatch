@@ -2,4 +2,6 @@ myenv
 .env
 captures
 docker-compose.yaml
+cap1
+cap2
 

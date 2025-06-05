@@ -146,7 +146,7 @@ def capture_stream(ip, channel, stream, username, password, alert_cooldown, star
                         filename = f'{date_directory}/detection_{channel}_{timestamp}.jpg'
                     
                     if detected:
-                        cv2.imwrite(filename, frame)
+                        cv2.imwrite(filename, processed_frame)
                         logging.info(f"Saved detection frame to {filename}")
                     
                     # Break the loop on 'q' key press
