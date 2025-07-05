@@ -123,7 +123,7 @@ def consume_frames(queue_name):
                 # Processing frame...
                 logging.info(">->->->->->->->")
                 logging.info("Processing frame...")
-                human_detected, processed_frame = detect_human_mobilenet_ssd(net, frame)
+                human_detected = detect_human_mobilenet_ssd(net, frame)
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
                 if human_detected:
@@ -141,7 +141,7 @@ def consume_frames(queue_name):
 
                     # Save the frame with detected human
                     filename = f"{date_directory}/detection_{timestamp}.jpg"
-                    cv2.imwrite(filename, processed_frame)
+                    cv2.imwrite(filename, frame)
                     logging.info(f"Saved detection frame to {filename}")
 
                 logging.info("Processing done!")
