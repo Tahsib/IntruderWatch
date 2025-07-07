@@ -46,6 +46,7 @@ def detect_human_mobilenet_ssd(net, frame):
                 logging.info(
                     f"Human detected: Box = ({startX}, {startY}, {endX}, {endY})"
                 )
+                logging.info(f"Detection {i}: Confidence = {confidence}")
     return human_detected
 
 
