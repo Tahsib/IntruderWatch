@@ -46,7 +46,9 @@ def detect_human_mobilenet_ssd(net, frame):
                 logging.info(
                     f"Human detected: Box = ({startX}, {startY}, {endX}, {endY})"
                 )
-    return human_detected
+                logging.info(f"Detection {i}: Confidence = {confidence}")
+                cv2.rectangle(frame, (startX, startY), (endX, endY), (0, 255, 0), 2)
+    return human_detected, frame
 
 
 def rabbitmq_connection(queue_name):
@@ -123,7 +125,18 @@ def consume_frames(queue_name):
                 # Processing frame...
                 logging.info(">->->->->->->->")
                 logging.info("Processing frame...")
-                human_detected = detect_human_mobilenet_ssd(net, frame)
+                
+                # Save frame locally with human-readable timestamp (hour, minute, second, microsecond)
+                # now = datetime.now()
+                # date_str = now.strftime("%Y-%m-%d")
+                # time_str = now.strftime("%H-%M-%S-%f")  # e.g., 05-00-34-123456
+                # camera_id = payload.get("camera", "unknown")
+                # date_dir = f"/app/captures/camera_{camera_id}/{date_str}"
+                # if not os.path.exists(date_dir):
+                #     os.makedirs(date_dir, exist_ok=True)
+                # cv2.imwrite(f"{date_dir}/frame_{time_str}.png", frame)  # Save frame locally
+                
+                human_detected, processed_frame = detect_human_mobilenet_ssd(net, frame)
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
                 if human_detected:
@@ -134,14 +147,15 @@ def consume_frames(queue_name):
                     )
 
                     date_only = timestamp.split()[0]
-                    date_directory = os.path.join("captures", date_only)
-                    if not os.path.exists(date_directory):
-                        os.makedirs(date_directory)
-                        logging.info(f"{date_directory} directory created!")
+                    camera_id = payload.get("camera", "unknown")
+                    detection_dir = os.path.join(f"/app/captures/camera_{camera_id}", date_only)
+                    if not os.path.exists(detection_dir):
+                        os.makedirs(detection_dir, exist_ok=True)
+                        logging.info(f"{detection_dir} directory created!")
 
                     # Save the frame with detected human
-                    filename = f"{date_directory}/detection_{timestamp}.jpg"
-                    cv2.imwrite(filename, frame)
+                    filename = f"{detection_dir}/detection_{timestamp}.jpg"
+                    cv2.imwrite(filename, processed_frame)
                     logging.info(f"Saved detection frame to {filename}")
 
                 logging.info("Processing done!")
