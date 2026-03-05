@@ -1,8 +1,8 @@
-import pika
 import time
 import os
 import logging
 from twilio.rest import Client
+from shared.rabbitmq_client import connect_rabbitmq
 
 # Configure logging
 logging.basicConfig(
@@ -36,26 +36,6 @@ def send_call_alert(to_phone_number):
         logging.error(f"Failed to send call alert: {e}")
 
 
-def rabbitmq_connection(queue_name):
-    rabbitmq_host = os.getenv("RABBITMQ_HOST", "")
-    rabbitmq_user = os.getenv("RABBITMQ_USER", "")
-    rabbitmq_password = os.getenv("RABBITMQ_PASS", "")
-    credentials = pika.PlainCredentials(rabbitmq_user, rabbitmq_password)
-    connection_params = pika.ConnectionParameters(
-        host=rabbitmq_host, credentials=credentials
-    )
-
-    try:
-        connection = pika.BlockingConnection(connection_params)
-        channel = connection.channel()
-        channel.queue_declare(queue=queue_name, durable=True)
-        logging.info(f"Connected to RabbitMQ queue: {queue_name}")
-        return connection, channel
-    except Exception as e:
-        logging.error(f"Failed to connect to RabbitMQ: {e}")
-        raise
-
-
 def alert_service(queue_name):
     last_alert_time = 0
 
@@ -75,7 +55,7 @@ def alert_service(queue_name):
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
-    connection, channel = rabbitmq_connection(queue_name)
+    connection, channel = connect_rabbitmq(queue_name)
     channel.basic_consume(
         queue=queue_name, on_message_callback=callback, auto_ack=False
     )

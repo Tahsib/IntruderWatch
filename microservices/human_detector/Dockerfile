@@ -5,7 +5,7 @@ FROM python:3.9-slim
 WORKDIR /app
 
 # Install dependencies
-COPY requirements.txt .
+COPY human_detector/requirements.txt .
 
 # Set the timezone to Bangladesh
 RUN apt-get update && apt-get install -y tzdata \
@@ -15,8 +15,9 @@ RUN apt-get update && apt-get install -y tzdata \
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# Copy shared module and application code
+COPY shared/ ./shared/
+COPY human_detector/ .
 
 # Run the application
 CMD ["python", "human_detector.py"]

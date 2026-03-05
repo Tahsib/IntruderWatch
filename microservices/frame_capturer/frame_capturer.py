@@ -8,8 +8,8 @@ import logging
 import hashlib
 import base64
 import json
-import uuid
 from datetime import datetime
+from shared.rabbitmq_client import connect_rabbitmq
 
 # Configure logging
 logging.basicConfig(
@@ -17,37 +17,6 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
 )
-
-
-def connect_rabbitmq(queue_name):
-    # Fetch RabbitMQ connection details from environment variables
-    rabbitmq_host = os.getenv("RABBITMQ_HOST", "")
-    rabbitmq_user = os.getenv("RABBITMQ_USER", "")
-    rabbitmq_password = os.getenv("RABBITMQ_PASS", "")
-
-    # Create RabbitMQ credentials
-    credentials = pika.PlainCredentials(rabbitmq_user, rabbitmq_password)
-
-    # Set up connection parameters
-    connection_params = pika.ConnectionParameters(
-        host=rabbitmq_host, credentials=credentials, frame_max=131072)
-
-    try:
-        # Establish connection and channel
-        connection = pika.BlockingConnection(connection_params)
-        channel = connection.channel()
-
-        # Declare the queue
-        channel.queue_declare(queue=queue_name, durable=True)
-
-        print(f"Connected to RabbitMQ at {rabbitmq_host}, queue: {queue_name}")
-        return connection, channel
-    except pika.exceptions.ProbableAuthenticationError:
-        print("Authentication failed! Check RabbitMQ credentials.")
-        raise
-    except Exception as e:
-        print(f"Failed to connect to RabbitMQ: {e}")
-        raise
 
 
 def is_within_time_frame(start_time, end_time):
@@ -75,7 +44,7 @@ def capture_frames(ip, channel, stream, username, password, queue_name, frame_wi
         try:
             width, height = frame_width, frame_height  # adjust to your stream resolution
             frame_size = width * height * 3
-            mq_connection, mq_channel = connect_rabbitmq(queue_name)
+            mq_connection, mq_channel = connect_rabbitmq(queue_name, frame_max=131072)
             last_sent_time = 0
             while True:
                 if is_within_time_frame(start_time, end_time):
