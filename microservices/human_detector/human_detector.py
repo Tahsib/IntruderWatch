@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-import pika
 import time
 import os
 import logging
@@ -8,6 +7,7 @@ import hashlib
 import base64
 import json
 from datetime import datetime
+from shared.rabbitmq_client import connect_rabbitmq
 
 # Configure logging
 logging.basicConfig(
@@ -51,55 +51,10 @@ def detect_human_mobilenet_ssd(net, frame):
     return human_detected, frame
 
 
-def rabbitmq_connection(queue_name):
-    # Fetch RabbitMQ connection details from environment variables
-    rabbitmq_host = os.getenv("RABBITMQ_HOST", "")
-    rabbitmq_user = os.getenv("RABBITMQ_USER", "")
-    rabbitmq_password = os.getenv("RABBITMQ_PASS", "")
-
-    # Create RabbitMQ credentials
-    credentials = pika.PlainCredentials(rabbitmq_user, rabbitmq_password)
-
-    # Set up connection parameters
-    connection_params = pika.ConnectionParameters(
-        host=rabbitmq_host, credentials=credentials
-    )
-
-    try:
-        # Establish connection and channel
-        connection = pika.BlockingConnection(connection_params)
-        channel = connection.channel()
-
-        # Declare the queues
-        channel.queue_declare(queue=queue_name, durable=True)  # frame queue
-        channel.queue_declare(queue="alert_queue", durable=True)  # alert queue
-
-        print(f"Connected to RabbitMQ at {rabbitmq_host}, queue: {queue_name}")
-        return connection, channel
-    except pika.exceptions.ProbableAuthenticationError:
-        print("Authentication failed! Check RabbitMQ credentials.")
-        raise
-    except Exception as e:
-        print(f"Failed to connect to RabbitMQ: {e}")
-        raise
-
-
 # Consume frames from the queue
 def consume_frames(queue_name):
-    def connect_rabbitmq():
-        while True:
-            try:
-                connection, channel = rabbitmq_connection("frame_queue")
-                logging.info("Connected to RabbitMQ.")
-                return connection, channel
-            except Exception as e:
-                logging.error(
-                    f"Failed to connect to RabbitMQ: {e}. Retrying in 5 seconds..."
-                )
-                time.sleep(5)
-
     net = load_mobilenet_ssd()
-    connection, channel = connect_rabbitmq()
+    connection, channel = connect_rabbitmq(["frame_queue", "alert_queue"])
 
     if not os.path.exists("captures"):
         os.makedirs("captures")
