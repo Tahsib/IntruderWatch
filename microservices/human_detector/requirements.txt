@@ -1,3 +1,6 @@
 opencv-python-headless
 pika
 numpy
+torch
+torchvision
+ultralytics
