@@ -24,9 +24,10 @@ def connect_rabbitmq(queue_names, retries=5, delay=5, frame_max=0):
     password = os.getenv("RABBITMQ_PASS", "guest")
 
     credentials = pika.PlainCredentials(user, password)
-    params = pika.ConnectionParameters(
-        host=host, credentials=credentials, frame_max=frame_max
-    )
+    kwargs = dict(host=host, credentials=credentials)
+    if frame_max:
+        kwargs["frame_max"] = frame_max
+    params = pika.ConnectionParameters(**kwargs)
 
     if isinstance(queue_names, str):
         queue_names = [queue_names]

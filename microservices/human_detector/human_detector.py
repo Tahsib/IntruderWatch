@@ -7,6 +7,7 @@ import hashlib
 import base64
 import json
 from datetime import datetime
+from ultralytics import YOLO
 from shared.rabbitmq_client import connect_rabbitmq
 
 # Configure logging
@@ -17,43 +18,22 @@ logging.basicConfig(
 )
 
 
-# Load MobileNet-SSD model
-def load_mobilenet_ssd():
-    prototxt_path = "deploy.prototxt"
-    model_path = "mobilenet_iter_73000.caffemodel"
-    net = cv2.dnn.readNetFromCaffe(prototxt_path, model_path)
-    return net
-
-
-# Detect humans
-def detect_human_mobilenet_ssd(net, frame):
-    blob = cv2.dnn.blobFromImage(
-        cv2.resize(frame, (300, 300)), 0.007843, (300, 300), 127.5
-    )
-    net.setInput(blob)
-    detections = net.forward()
-
-    (h, w) = frame.shape[:2]
+def detect_humans(model, frame, confidence_threshold):
+    results = model(frame, classes=[0], conf=confidence_threshold, verbose=False)[0]
     human_detected = False
-    for i in range(detections.shape[2]):
-        confidence = detections[0, 0, i, 2]
-        if confidence > DETECTION_CONFIDENCE:  # Adjust threshold as needed
-            idx = int(detections[0, 0, i, 1])
-            if idx == 15:
-                box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-                (startX, startY, endX, endY) = box.astype("int")
-                human_detected = True
-                logging.info(
-                    f"Human detected: Box = ({startX}, {startY}, {endX}, {endY})"
-                )
-                logging.info(f"Detection {i}: Confidence = {confidence}")
-                cv2.rectangle(frame, (startX, startY), (endX, endY), (0, 255, 0), 2)
+    for box in results.boxes:
+        human_detected = True
+        x1, y1, x2, y2 = box.xyxy[0].int().tolist()
+        conf = box.conf[0].item()
+        logging.info(f"Human detected: Box = ({x1}, {y1}, {x2}, {y2})")
+        logging.info(f"Confidence = {conf:.4f}")
+        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
     return human_detected, frame
 
 
 # Consume frames from the queue
 def consume_frames(queue_name):
-    net = load_mobilenet_ssd()
+    model = YOLO("yolov8n.pt")
     connection, channel = connect_rabbitmq(["frame_queue", "alert_queue"])
 
     if not os.path.exists("captures"):
@@ -91,25 +71,28 @@ def consume_frames(queue_name):
                 #     os.makedirs(date_dir, exist_ok=True)
                 # cv2.imwrite(f"{date_dir}/frame_{time_str}.png", frame)  # Save frame locally
                 
-                human_detected, processed_frame = detect_human_mobilenet_ssd(net, frame)
+                human_detected, processed_frame = detect_humans(model, frame, DETECTION_CONFIDENCE)
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
                 if human_detected:
-                    alert_message = f"Human detected at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                    camera_id = payload.get("camera", "unknown")
+                    alert_payload = json.dumps({
+                        "camera": camera_id,
+                        "timestamp": timestamp,
+                    })
                     logging.info("Publishing alert to alert_queue...")
                     channel.basic_publish(
-                        exchange="", routing_key="alert_queue", body=alert_message
+                        exchange="", routing_key="alert_queue", body=alert_payload
                     )
 
                     date_only = timestamp.split()[0]
-                    camera_id = payload.get("camera", "unknown")
                     detection_dir = os.path.join(f"/app/captures/camera_{camera_id}", date_only)
                     if not os.path.exists(detection_dir):
                         os.makedirs(detection_dir, exist_ok=True)
                         logging.info(f"{detection_dir} directory created!")
 
                     # Save the frame with detected human
-                    filename = f"{detection_dir}/detection_{timestamp}.jpg"
+                    filename = f"{detection_dir}/detection_{timestamp}.png"
                     cv2.imwrite(filename, processed_frame)
                     logging.info(f"Saved detection frame to {filename}")
 
