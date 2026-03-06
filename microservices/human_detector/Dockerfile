@@ -1,23 +1,25 @@
-# Base image
-FROM python:3.9-slim
+FROM python:3.12-slim AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Install dependencies
 COPY human_detector/requirements.txt .
 
-# Set the timezone to Bangladesh
-RUN apt-get update && apt-get install -y tzdata \
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir -r requirements.txt
+
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends tzdata libgl1 libglib2.0-0 \
     && ln -snf /usr/share/zoneinfo/Asia/Dhaka /etc/localtime \
     && echo 'Asia/Dhaka' > /etc/timezone \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir -r requirements.txt
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy shared module and application code
 COPY shared/ ./shared/
 COPY human_detector/ .
 
-# Run the application
 CMD ["python", "human_detector.py"]
