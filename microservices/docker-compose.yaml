@@ -1,0 +1,176 @@
+# IntruderWatch Microservices
+# ============================
+#
+# Usage:
+#   docker compose up                     # Run all services (default profile)
+#   docker compose --profile cam1 up      # Enable camera 1
+#   docker compose --profile cam1,cam2 up # Enable cameras 1 and 2
+#   docker compose up -d                  # Run in background
+#
+# Available profiles:
+#   cam1, cam2, cam3, cam4, cam5, cam6, cam7, cam8  - Individual camera frame capturers
+#   build - Build frame_capturer image only
+#
+# Default services (always run):
+#   - rabbitmq: Message broker
+#   - human_detector: ML detection service (5 replicas)
+#   - alert_service: Alert notifications
+#   - viewer_service: Web UI for browsing captures
+
+---
+x-frame-capturer: &frame-capturer
+  image: microservices_frame_capturer:latest
+  env_file:
+    - .env
+  environment: &frame-capturer-env
+    SUBTYPE: 0
+  restart: unless-stopped
+  depends_on:
+    - rabbitmq
+  networks:
+    - detection
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+    tmpfs:
+      - /var/lib/rabbitmq:rw,noexec,nosuid,size=256m
+    restart: unless-stopped
+    networks:
+      - detection
+
+  frame_capturer:
+    build:
+      context: .
+      dockerfile: frame_capturer/Dockerfile
+    image: microservices_frame_capturer:latest
+    profiles: [build]
+
+  # Camera 1 - Enable with: docker compose --profile cam1 up
+  frame_capturer_1:
+    <<: *frame-capturer
+    container_name: frame_capturer_1
+    environment:
+      <<: *frame-capturer-env
+      CHANNEL: 1
+    profiles: [cam1]
+
+  frame_capturer_2:
+    <<: *frame-capturer
+    container_name: frame_capturer_2
+    environment:
+      <<: *frame-capturer-env
+      CHANNEL: 2
+    profiles: [cam2]
+
+  frame_capturer_3:
+    <<: *frame-capturer
+    container_name: frame_capturer_3
+    environment:
+      <<: *frame-capturer-env
+      CHANNEL: 3
+    profiles: [cam3]
+
+  frame_capturer_4:
+    <<: *frame-capturer
+    container_name: frame_capturer_4
+    environment:
+      <<: *frame-capturer-env
+      CHANNEL: 4
+    profiles: [cam4]
+
+  # Neighbour
+  frame_capturer_5:
+    <<: *frame-capturer
+    container_name: frame_capturer_5
+    environment:
+      <<: *frame-capturer-env
+      CHANNEL: 5
+    profiles: [cam5]
+
+  frame_capturer_6:
+    <<: *frame-capturer
+    container_name: frame_capturer_6
+    environment:
+      <<: *frame-capturer-env
+      CHANNEL: 6
+    profiles: [cam6]  
+
+  frame_capturer_7:
+    <<: *frame-capturer
+    container_name: frame_capturer_7
+    environment:
+      <<: *frame-capturer-env
+      CHANNEL: 7
+      FRAME_WIDTH: 960
+      FRAME_HEIGHT: 576
+    profiles: [cam7]
+
+  frame_capturer_8:
+    <<: *frame-capturer
+    container_name: frame_capturer_8
+    environment:
+      <<: *frame-capturer-env
+      CHANNEL: 8
+      FRAME_WIDTH: 960
+      FRAME_HEIGHT: 576
+    profiles: [cam8]
+
+  # Human Detection Service - Processes frames from all cameras
+  # Runs 5 replicas for parallel processing
+  human_detector:
+    build:
+      context: .
+      dockerfile: human_detector/Dockerfile
+    image: microservices_human_detector:latest
+    env_file:
+      - .env
+    volumes:
+      - ./captures:/app/captures
+    restart: unless-stopped
+    depends_on:
+      - rabbitmq
+    deploy:
+      replicas: 5
+    networks:
+      - detection
+
+  # Alert Service - Sends notifications for detected intruders
+  alert_service:
+    build:
+      context: .
+      dockerfile: alert_service/Dockerfile
+    container_name: alert_service
+    env_file:
+      - .env
+    restart: unless-stopped
+    depends_on:
+      - rabbitmq
+    networks:
+      - detection
+
+  # Viewer Service - Web UI to browse captured images
+  # Access at: http://localhost:8085
+  viewer_service:
+    build:
+      context: .
+      dockerfile: viewer_service/Dockerfile
+    container_name: viewer_service
+    volumes:
+      - ./captures:/app/captures:ro
+    ports:
+      - "8085:8080"
+    restart: unless-stopped
+    networks:
+      - detection
+
+networks:
+  detection:
+    driver: bridge
