@@ -1,16 +1,17 @@
 # IntruderWatch
 
-IntruderWatch is a lightweight camera-frame ingestion and human-detection prototype built as small microservices. It captures frames from RTSP cameras, publishes frames over RabbitMQ, and runs a human detector that saves per-camera detection images and publishes alerts.
+IntruderWatch is a real-time intruder detection system with frame ingestion, human detection, and a web-based image viewer. Built as scalable microservices with RTSP camera capture, RabbitMQ message broker, and YOLOv8n for human detection.
 
-This repository contains:
-- `microservices/frame_capturer/` 
-  - captures frames from RTSP using `ffmpeg` (image2pipe), encodes frames and publishes to RabbitMQ.
-- `microservices/human_detector/` 
-  - consumes frame messages, runs MobileNet-SSD to detect humans, saves detection images and publishes alerts.
-- `microservices/alert_service/` 
-  - (simple) alert consumer used for integrations/notifications.
-- `monolith/` 
-  - an older monolithic detector (kept for reference).
+## Repository Structure
+
+**Microservices** (recommended):
+- `microservices/frame_capturer/` - Captures frames from RTSP cameras via ffmpeg, publishes to RabbitMQ
+- `microservices/human_detector/` - Consumes frames, runs YOLOv8n detection, saves detection images
+- `microservices/alert_service/` - Consumes alerts and sends notifications (Twilio)
+- `microservices/viewer_service/` - Web UI for browsing captured images by camera and date
+
+**Monolith** (legacy):
+- `monolith/` - Original single-container detector using MobileNet-SSD (kept for reference)
 
 Goals:
 - Reliable RTSP ingestion (supports camera auth) using ffmpeg.
@@ -27,11 +28,18 @@ Goals:
   - Environment-driven (see env vars below) and writes to `CAPTURES_DIR` when configured.
 
 - `microservices/human_detector/human_detector.py`
-  - Consumes `frame_queue`, validates hash, decodes image, runs MobileNet-SSD, and writes detection frames to `CAPTURES_DIR/camera_<id>/<YYYY-MM-DD>/`.
-  - Default detection confidence can be set via `DETECTION_CONFIDENCE`.
+  - Consumes `frame_queue`, validates hash, decodes image, runs YOLOv8n for human detection, saves detection frames to `CAPTURES_DIR/camera_<id>/<YYYY-MM-DD>/`.
+  - Detection confidence threshold configurable via `DETECTION_CONFIDENCE` (default: 0.7).
+  - Runs 5 replicas for parallel frame processing.
 
 - `microservices/alert_service/alert_service.py`
-  - Example consumer that listens on `alert_queue` to handle alerts.
+  - Consumes `alert_queue` and sends Twilio notifications.
+  - Rate-limited alerts via `ALERT_COOLDOWN` (default: 90 seconds).
+
+- `microservices/viewer_service/viewer_service.py`
+  - Web-based image viewer for browsing captures organized by camera and date.
+  - REST APIs: `/api/cameras`, `/api/cameras/{camera}/dates`, `/api/cameras/{camera}/dates/{date}/images`.
+  - Lazy-loaded image grid with lightbox modal and pagination.
 
 ---
 
@@ -73,102 +81,83 @@ Note: `FRAME_WIDTH` and `FRAME_HEIGHT` must match the camera stream resolution. 
 
 ---
 
-## Docker / Docker Compose (example)
+## Docker / Docker Compose
 
-This repo includes Dockerfiles for the microservices, but does not ship a top-level `docker-compose.yml`. Below is a minimal example you can copy and adapt to run the services locally.
+The repository includes `docker-compose.yaml` files for both microservices and monolith.
 
-Save the following to `docker-compose.local.yml` in the repo root:
-
-```yaml
-version: '3.8'
-services:
-  rabbitmq:
-    image: rabbitmq:3-management
-    ports:
-      - '5672:5672'
-      - '15672:15672'
-
-  frame_capturer:
-    build: ./microservices/frame_capturer
-    environment:
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_USER=guest
-      - RABBITMQ_PASS=guest
-      - STREAM_IP=192.168.1.100
-      - STREAM_USERNAME=admin
-      - STREAM_PASSWORD=pass
-      - CHANNEL=1
-      - SUBTYPE=0
-      - FRAME_WIDTH=1280
-      - FRAME_HEIGHT=720
-      - FRAME_QUEUE_NAME=frame_queue
-      - CAPTURES_DIR=/app/captures
-    volumes:
-      - ./cap_local:/app/captures
-    depends_on:
-      - rabbitmq
-
-  human_detector:
-    build: ./microservices/human_detector
-    environment:
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_USER=guest
-      - RABBITMQ_PASS=guest
-      - DETECTION_CONFIDENCE=0.5
-      - CAPTURES_DIR=/app/captures
-    volumes:
-      - ./cap_local:/app/captures
-    depends_on:
-      - rabbitmq
-
-  alert_service:
-    build: ./microservices/alert_service
-    environment:
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_USER=guest
-      - RABBITMQ_PASS=guest
-    depends_on:
-      - rabbitmq
-
-networks:
-  default:
-    driver: bridge
-```
-
-Run locally (example):
+### Microservices (Recommended)
 
 ```bash
-# build images
-docker compose -f docker-compose.local.yml build
+cd microservices
 
-# start services
-docker compose -f docker-compose.local.yml up
+# Copy and configure environment
+cp .env.example .env
+# Edit .env with your camera IP, Twilio credentials, etc.
+
+# Run all services
+docker compose up -d
+
+# Run specific cameras only (using profiles)
+docker compose --profile cam1,cam2 up -d
+
+# View logs
+docker compose logs -f viewer_service
 ```
 
-Notes: adjust `STREAM_IP`, credentials, and `FRAME_WIDTH`/`FRAME_HEIGHT` to match your camera. The example mounts `./cap_local` to persist captured/detection frames on the host.
+**Access:**
+- Viewer UI: http://localhost:8085
+- RabbitMQ Management: http://localhost:15672
+- API: http://localhost:8085/api/cameras
+
+### Monolith (Legacy)
+
+```bash
+cd monolith
+
+cp .env.example .env
+# Edit .env
+
+# Run all channels
+docker compose --profile ch1,ch2,ch3 up -d
+```
+
+**Configuration via `.env`:**
+- `STREAM_IP`, `STREAM_USERNAME`, `STREAM_PASSWORD` - Camera credentials
+- `RABBITMQ_HOST`, `RABBITMQ_USER`, `RABBITMQ_PASS` - RabbitMQ settings
+- `TWILIO_*` - SMS/Call alerts
+- `START_TIME`, `END_TIME` - Capture window (e.g., "00:00:00", "23:59:59")
+- `DETECTION_CONFIDENCE` - YOLOv8n threshold (0.0-1.0)
+- `ALERT_COOLDOWN` - Alert rate limit in seconds
 
 ---
 
-## How to test (smoke test)
+## Quick Start (Microservices)
 
-1. Prepare `docker-compose.local.yml` (see above), set camera credentials and resolution.
-2. Run `docker compose -f docker-compose.local.yml up --build`.
-3. Watch logs for `frame_capturer` to show "FFmpeg process started" and periodic "Frame sent to queue." messages (~1x/s).
-4. Watch `human_detector` logs for detection messages. If a human is detected, the detector will save a JPEG under `cap_local/camera_<id>/<YYYY-MM-DD>/`.
-5. Confirm the `cap_local` directory contains per-camera dated folders and detection images.
+1. **Setup:**
+   ```bash
+   cd microservices
+   cp .env.example .env
+   # Edit .env with your camera IP/credentials and Twilio account (for alerts)
+   ```
 
-Quick shell checks:
+2. **Start services:**
+   ```bash
+   docker compose --profile cam1 up -d
+   docker compose logs -f
+   ```
 
-```bash
-# show running containers
-docker ps
+3. **Check status:**
+   ```bash
+   # View captured images
+   ls captures/camera_1/$(date +%Y-%m-%d)/
 
-# tail logs for a service
-docker compose -f docker-compose.local.yml logs -f frame_capturer
+   # Test viewer API
+   curl http://localhost:8085/api/cameras
+   ```
 
-# list saved detections
-ls -R cap_local | sed -n '1,200p'
-```
+4. **Browse images:**
+   - Open http://localhost:8085 in browser
+   - Select camera → date → view detection grid
 
 ---
 
@@ -181,11 +170,13 @@ ls -R cap_local | sed -n '1,200p'
 
 ---
 
-## Next improvements (recommended)
+## Future Improvements
 
-- Switch PNG -> JPEG with configurable quality to reduce message size and memory.
-- Add a pruning/rotation microservice to clean old frames.
-- Add metrics (Prometheus) to monitor frames produced, published, and ffmpeg restarts.
-- Add unit tests and CI checks for linting and basic static analysis.
+- Add image pruning/retention policy (auto-delete frames older than N days)
+- Implement metrics collection (Prometheus) for monitoring
+- Add database backend (PostgreSQL) for detection metadata and statistics
+- Support multiple detection models (edge/cloud deployment)
+- Add authenticated access to viewer service
+- Implement object tracking for multi-frame intruder sequences
 
 ---
