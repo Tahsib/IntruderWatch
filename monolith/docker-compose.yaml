@@ -1,0 +1,74 @@
+# IntruderWatch Monolith
+# ======================
+#
+# Usage:
+#   docker compose up                     # Run all channels
+#   docker compose up channel-1           # Run only channel 1
+#   docker compose up -d                  # Run in background
+#
+# Services:
+#   - channel-1, channel-2, channel-3: Detection services per video channel
+#
+# Configuration:
+#   All settings are in .env (Twilio, Stream credentials, etc.)
+
+version: '3.8'
+
+services:
+  detector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: intruder-watch:latest
+    env_file:
+      - .env
+    restart: unless-stopped
+    profiles: [build]
+
+  # Channel 1 detector
+  channel-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: intruder-watch:latest
+    container_name: channel-1-detector
+    env_file:
+      - .env
+    environment:
+      CHANNEL: 1
+    volumes:
+      - ./captures/channel-1:/app/captures
+    restart: unless-stopped
+    profiles: [ch1]
+
+  # Channel 2 detector
+  channel-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: intruder-watch:latest
+    container_name: channel-2-detector
+    env_file:
+      - .env
+    environment:
+      CHANNEL: 2
+    volumes:
+      - ./captures/channel-2:/app/captures
+    restart: unless-stopped
+    profiles: [ch2]
+
+  # Channel 3 detector
+  channel-3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: intruder-watch:latest
+    container_name: channel-3-detector
+    env_file:
+      - .env
+    environment:
+      CHANNEL: 3
+    volumes:
+      - ./captures/channel-3:/app/captures
+    restart: unless-stopped
+    profiles: [ch3]
