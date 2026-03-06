@@ -3,3 +3,4 @@ myenv
 captures
 docker-compose.yaml
 logstash.conf
+ARCHITECTURE.md
