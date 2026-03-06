@@ -57,16 +57,21 @@ def capture_frames(ip, channel, stream, username, password, queue_name, frame_wi
                             "-loglevel", "error",
                             "-nostats",
                             "-i", rtsp_url,
-                            "-vf", "fps=1",
+                            "-vf", f"fps=1,scale={width}:{height}",
                             "-f", "image2pipe",
                             "-pix_fmt", "bgr24",
                             "-vcodec", "rawvideo",
                             "-"
                         ]
-                        pipe = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=4096)
+                        pipe = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=frame_size)
                         ffmpeg_running = True
                         logging.info("FFmpeg process started for RTSP stream.")
-                    raw_frame = pipe.stdout.read(frame_size)
+                    raw_frame = b""
+                    while len(raw_frame) < frame_size:
+                        chunk = pipe.stdout.read(frame_size - len(raw_frame))
+                        if not chunk:
+                            break
+                        raw_frame += chunk
                     if len(raw_frame) != frame_size:
                         logging.error("Incomplete frame received. Reinitializing capture...")
                         try:
