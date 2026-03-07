@@ -53,7 +53,7 @@ async def get_images(camera: str, date: str):
     images = sorted([
         f.name for f in date_path.iterdir()
         if f.is_file() and f.suffix.lower() in [".png", ".jpg", ".jpeg"]
-    ])
+    ], reverse=True)
 
     return images
 

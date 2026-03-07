@@ -2,492 +2,570 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Security Camera Viewer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IntruderWatch | Secure Viewer</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
+        :root {
+            --bg-deep: #0a0a0c;
+            --bg-surface: #16161a;
+            --bg-accent: #1f1f23;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --text-main: #f1f1f1;
+            --text-dim: #94a3b8;
+            --danger: #ef4444;
+            --glass: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.1);
+            --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background-color: #1a1a1a;
-            color: #e0e0e0;
+            font-family: 'Inter', -apple-system, system-ui, sans-serif;
+            background-color: var(--bg-deep);
+            color: var(--text-main);
             display: flex;
             height: 100vh;
             overflow: hidden;
         }
 
-        /* Sidebar */
-        .sidebar {
-            width: 200px;
-            background-color: #0d0d0d;
-            border-right: 1px solid #333;
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
         }
 
-        .sidebar-title {
-            padding: 16px;
-            font-weight: bold;
-            text-transform: uppercase;
-            font-size: 12px;
-            color: #999;
-            border-bottom: 1px solid #333;
+        .sidebar {
+            width: 260px;
+            background-color: var(--bg-surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+            z-index: 100;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                max-height: 30vh;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+        }
+
+        .brand {
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 800;
+            font-size: 1.2rem;
+            color: var(--primary);
+            letter-spacing: -0.5px;
         }
 
         .camera-list {
             flex: 1;
             overflow-y: auto;
+            padding: 0 12px 24px;
         }
 
         .camera-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
             padding: 12px 16px;
+            margin-bottom: 4px;
+            border-radius: 8px;
             cursor: pointer;
-            border-left: 3px solid transparent;
-            transition: all 0.2s ease;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--text-dim);
         }
 
         .camera-item:hover {
-            background-color: #1a1a1a;
-            border-left-color: #0066cc;
+            background-color: var(--bg-accent);
+            color: var(--text-main);
         }
 
         .camera-item.active {
-            background-color: #1a1a1a;
-            border-left-color: #00a8ff;
-            color: #00a8ff;
+            background-color: rgba(59, 130, 246, 0.1);
+            color: var(--primary);
+            font-weight: 600;
         }
 
-        /* Main content */
         .main {
             flex: 1;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            background-color: var(--bg-deep);
+            position: relative;
         }
 
-        /* Top bar */
         .topbar {
-            background-color: #0d0d0d;
-            border-bottom: 1px solid #333;
-            padding: 12px 20px;
+            height: 72px;
+            background-color: rgba(10, 10, 12, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 50;
+        }
+
+        @media (max-width: 768px) {
+            .topbar { height: 60px; padding: 0 16px; }
+        }
+
+        .controls {
             display: flex;
             align-items: center;
             gap: 16px;
-            flex-shrink: 0;
-        }
-
-        .topbar-label {
-            color: #999;
-            font-size: 12px;
-            text-transform: uppercase;
-            font-weight: bold;
         }
 
         .date-select {
-            padding: 8px 12px;
-            background-color: #1a1a1a;
-            color: #e0e0e0;
-            border: 1px solid #333;
-            border-radius: 4px;
-            font-size: 14px;
-            cursor: pointer;
-            min-width: 150px;
-        }
-
-        .date-select:hover {
-            border-color: #00a8ff;
-        }
-
-        .date-select:focus {
+            background-color: var(--bg-accent);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.9rem;
             outline: none;
-            border-color: #00a8ff;
-            box-shadow: 0 0 0 2px rgba(0, 168, 255, 0.2);
+            cursor: pointer;
+            min-width: 160px;
         }
 
-        .camera-name {
-            font-weight: bold;
-            color: #00a8ff;
-            margin-left: auto;
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            padding: 4px 10px;
+            background: var(--bg-accent);
+            border-radius: 20px;
         }
 
-        /* Image grid */
+        .status-badge.active::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background-color: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #10b981;
+        }
+
         .content {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
+            padding: 24px;
+            scroll-behavior: smooth;
         }
 
         .image-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 12px;
-            margin-bottom: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
         }
 
-        .image-item {
-            aspect-ratio: 16 / 9;
-            background-color: #2a2a2a;
-            border: 1px solid #333;
-            border-radius: 6px;
-            cursor: pointer;
+        @media (max-width: 480px) {
+            .image-grid { grid-template-columns: 1fr; }
+            .content { padding: 12px; }
+        }
+
+        .image-card {
+            background-color: var(--bg-surface);
+            border-radius: 12px;
+            border: 1px solid var(--border);
             overflow: hidden;
-            transition: all 0.2s ease;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .image-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+        }
+
+        .image-wrapper {
+            aspect-ratio: 16/9;
+            background-color: #000;
             position: relative;
-        }
-
-        .image-item:hover {
-            border-color: #00a8ff;
-            transform: scale(1.02);
-        }
-
-        .image-item img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: none;
-        }
-
-        .image-item img.loaded {
-            display: block;
-        }
-
-        .image-item-placeholder {
-            width: 100%;
-            height: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #666;
-            font-size: 12px;
         }
 
-        /* Load more button */
-        .load-more {
-            text-align: center;
-            padding: 16px;
+        .image-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
 
-        .load-more-btn {
-            padding: 10px 24px;
-            background-color: #0066cc;
-            color: white;
-            border: none;
+        .image-card img.loaded { opacity: 1; }
+
+        .card-footer {
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-surface);
+        }
+
+        .timestamp {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-main);
+        }
+
+        .tag {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            background: var(--bg-accent);
+            padding: 2px 6px;
             border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            transition: all 0.2s ease;
         }
 
-        .load-more-btn:hover {
-            background-color: #0052a3;
-        }
-
-        .load-more-btn:disabled {
-            background-color: #333;
-            cursor: not-allowed;
-            color: #666;
-        }
-
-        /* Modal */
-        .modal {
+        .lightbox {
             display: none;
             position: fixed;
             top: 0;
             left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0, 0, 0, 0.9);
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(8px);
             z-index: 1000;
-            justify-content: center;
-            align-items: center;
+            flex-direction: column;
         }
 
-        .modal.active {
+        .lightbox.active { display: flex; }
+
+        .lightbox-header {
+            padding: 20px;
             display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-main);
         }
 
-        .modal-content {
+        .lightbox-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             position: relative;
-            max-width: 90vw;
-            max-height: 90vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            padding: 20px;
+            touch-action: none;
         }
 
-        .modal-image {
+        .main-img {
             max-width: 100%;
-            max-height: 100%;
+            max-height: 85vh;
             object-fit: contain;
+            border-radius: 4px;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
         }
 
-        .modal-close {
+        .nav-btn {
             position: absolute;
-            top: 16px;
-            right: 16px;
-            background-color: rgba(0, 0, 0, 0.7);
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
             color: white;
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 4px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
             cursor: pointer;
-            font-size: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s ease;
+            transition: all 0.2s;
+            z-index: 10;
         }
 
-        .modal-close:hover {
-            background-color: rgba(0, 168, 255, 0.8);
+        .nav-btn:hover { background: var(--primary); }
+        .prev-btn { left: 30px; }
+        .next-btn { right: 30px; }
+
+        @media (max-width: 768px) { .nav-btn { display: none; } }
+
+        .close-btn { background: none; border: none; color: white; cursor: pointer; padding: 8px; }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
         }
 
-        .modal-info {
-            position: absolute;
-            bottom: 16px;
-            left: 16px;
-            color: #e0e0e0;
-            font-size: 12px;
-            background-color: rgba(0, 0, 0, 0.7);
-            padding: 8px 12px;
-            border-radius: 4px;
-        }
-
-        /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #1a1a1a;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #333;
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #00a8ff;
-        }
-
-        /* Loading state */
-        .loading {
-            text-align: center;
-            padding: 40px 20px;
-            color: #666;
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: #666;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 60vh;
+            color: var(--text-dim);
+            gap: 16px;
         }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: var(--bg-accent); border-radius: 10px; }
     </style>
 </head>
 <body>
     <div class="sidebar">
-        <div class="sidebar-title">Cameras</div>
+        <div class="brand">
+            <i data-lucide="shield-check"></i>
+            <span>IntruderWatch</span>
+        </div>
         <div class="camera-list" id="cameraList"></div>
     </div>
 
     <div class="main">
-        <div class="topbar">
-            <span class="topbar-label">Date</span>
-            <select class="date-select" id="dateSelect" disabled>
-                <option>Select a date...</option>
-            </select>
-            <span class="camera-name" id="cameraName">No camera selected</span>
-        </div>
+        <header class="topbar">
+            <div class="controls">
+                <select class="date-select" id="dateSelect" disabled>
+                    <option value="">Select Date</option>
+                </select>
+                <div class="status-badge" id="cameraStatus">
+                    <i data-lucide="video"></i>
+                    <span id="cameraNameDisplay">Standby</span>
+                </div>
+            </div>
+            <div id="stats" class="status-badge">
+                <span id="imageCount">0 Images</span>
+            </div>
+        </header>
 
-        <div class="content" id="content">
-            <div class="empty-state">Select a camera to start</div>
-        </div>
+        <main class="content" id="content">
+            <div class="empty-state" id="initialState">
+                <i data-lucide="search" size="48"></i>
+                <p>Select a camera to begin monitoring</p>
+            </div>
+            <div class="image-grid" id="imageGrid"></div>
+        </main>
     </div>
 
-    <div class="modal" id="modal">
-        <div class="modal-content">
-            <img id="modalImage" class="modal-image" alt="Full image">
-            <button class="modal-close" onclick="closeModal()">&times;</button>
-            <div class="modal-info" id="modalInfo"></div>
+    <div class="lightbox" id="lightbox">
+        <div class="lightbox-header">
+            <div class="info">
+                <div id="lightboxTime" style="font-weight: 600;"></div>
+                <div id="lightboxFile" style="font-size: 0.75rem; color: var(--text-dim);"></div>
+            </div>
+            <button class="close-btn" onclick="closeLightbox()">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        <div class="lightbox-content" id="lightboxContent">
+            <button class="nav-btn prev-btn" onclick="navigate(-1)">
+                <i data-lucide="chevron-left"></i>
+            </button>
+            <img id="mainImg" class="main-img" src="" alt="Capture">
+            <button class="nav-btn next-btn" onclick="navigate(1)">
+                <i data-lucide="chevron-right"></i>
+            </button>
         </div>
     </div>
 
     <script>
         const API_BASE = '/api';
-        let currentCamera = null;
-        let currentDate = null;
+        let currentCamera = localStorage.getItem('last_camera');
+        let currentDate = localStorage.getItem('last_date');
         let allImages = [];
-        let displayedCount = 0;
-        const IMAGES_PER_PAGE = 50;
+        let currentIndex = -1;
+        let pollInterval = null;
 
-        // Initialize
         async function init() {
             await loadCameras();
-            document.getElementById('dateSelect').addEventListener('change', loadImages);
-            document.getElementById('content').addEventListener('scroll', handleScroll);
-            document.getElementById('modal').addEventListener('click', (e) => {
-                if (e.target === document.getElementById('modal')) closeModal();
+            lucide.createIcons();
+            
+            document.getElementById('dateSelect').addEventListener('change', (e) => {
+                currentDate = e.target.value;
+                localStorage.setItem('last_date', currentDate);
+                loadImages(true);
             });
+            
             document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') closeModal();
+                if (!document.getElementById('lightbox').classList.contains('active')) return;
+                if (e.key === 'ArrowLeft') navigate(-1);
+                if (e.key === 'ArrowRight') navigate(1);
+                if (e.key === 'Escape') closeLightbox();
             });
+
+            // Restore previous state if exists
+            if (currentCamera) {
+                const camEl = Array.from(document.querySelectorAll('.camera-item'))
+                    .find(el => el.dataset.id === currentCamera);
+                if (camEl) await selectCamera(currentCamera, camEl, true);
+            }
+
+            // Start polling for new images
+            pollInterval = setInterval(pollNewImages, 5000);
         }
 
         async function loadCameras() {
             try {
-                const response = await fetch(`${API_BASE}/cameras`);
-                const cameras = await response.json();
-                const cameraList = document.getElementById('cameraList');
-                cameraList.innerHTML = '';
+                const res = await fetch(`${API_BASE}/cameras`);
+                const cameras = await res.json();
+                const list = document.getElementById('cameraList');
+                list.innerHTML = '';
 
-                cameras.forEach(camera => {
-                    const div = document.createElement('div');
-                    div.className = 'camera-item';
-                    div.textContent = camera;
-                    div.onclick = () => selectCamera(camera, div);
-                    cameraList.appendChild(div);
+                cameras.forEach(cam => {
+                    const el = document.createElement('div');
+                    el.className = 'camera-item';
+                    el.dataset.id = cam;
+                    el.innerHTML = `<i data-lucide="camera"></i><span>${cam.replace('camera_', 'Camera ')}</span>`;
+                    el.onclick = () => selectCamera(cam, el);
+                    list.appendChild(el);
                 });
-            } catch (error) {
-                console.error('Error loading cameras:', error);
-            }
+                lucide.createIcons();
+            } catch (e) { console.error(e); }
         }
 
-        async function selectCamera(camera, element) {
-            currentCamera = camera;
-            currentDate = null;
-            allImages = [];
-            displayedCount = 0;
+        async function selectCamera(cam, el, isInitial = false) {
+            currentCamera = cam;
+            localStorage.setItem('last_camera', cam);
+            document.querySelectorAll('.camera-item').forEach(i => i.classList.remove('active'));
+            el.classList.add('active');
+            
+            document.getElementById('cameraNameDisplay').textContent = cam.replace('camera_', 'Camera ');
+            document.getElementById('cameraStatus').classList.add('active');
 
-            // Update active state
-            document.querySelectorAll('.camera-item').forEach(item => {
-                item.classList.remove('active');
+            const res = await fetch(`${API_BASE}/cameras/${cam}/dates`);
+            const dates = await res.json();
+            const select = document.getElementById('dateSelect');
+            select.innerHTML = '<option value="">Select Date</option>';
+            dates.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d; opt.textContent = d;
+                select.appendChild(opt);
             });
-            element.classList.add('active');
-
-            document.getElementById('cameraName').textContent = camera;
-
-            // Load dates
-            try {
-                const response = await fetch(`${API_BASE}/cameras/${camera}/dates`);
-                const dates = await response.json();
-                const dateSelect = document.getElementById('dateSelect');
-                dateSelect.innerHTML = '<option value="">Select a date...</option>';
-                dateSelect.disabled = false;
-
-                dates.forEach(date => {
-                    const option = document.createElement('option');
-                    option.value = date;
-                    option.textContent = date;
-                    dateSelect.appendChild(option);
-                });
-
-                document.getElementById('content').innerHTML = '<div class="empty-state">Select a date to view images</div>';
-            } catch (error) {
-                console.error('Error loading dates:', error);
+            select.disabled = false;
+            
+            if (isInitial && currentDate && dates.includes(currentDate)) {
+                select.value = currentDate;
+            } else if (dates.length > 0) {
+                currentDate = dates[0];
+                select.value = currentDate;
+                localStorage.setItem('last_date', currentDate);
             }
+            
+            loadImages(true);
         }
 
-        async function loadImages() {
-            const dateSelect = document.getElementById('dateSelect');
-            currentDate = dateSelect.value;
+        async function loadImages(showSpinner = false) {
+            if (!currentCamera || !currentDate) return;
 
-            if (!currentCamera || !currentDate) {
-                document.getElementById('content').innerHTML = '<div class="empty-state">Select a date to view images</div>';
-                return;
+            if (showSpinner) {
+                document.getElementById('initialState').style.display = 'none';
+                document.getElementById('imageGrid').innerHTML = '<div class="spinner"></div>';
             }
 
             try {
-                const response = await fetch(`${API_BASE}/cameras/${currentCamera}/dates/${currentDate}/images`);
-                allImages = await response.json();
-                displayedCount = 0;
-
-                document.getElementById('content').innerHTML = '<div class="image-grid" id="imageGrid"></div><div class="load-more"></div>';
-
-                if (allImages.length === 0) {
-                    document.getElementById('content').innerHTML = '<div class="empty-state">No images found for this date</div>';
-                    return;
+                const res = await fetch(`${API_BASE}/cameras/${currentCamera}/dates/${currentDate}/images`);
+                const newImages = await res.json();
+                
+                // Only redraw if the image list changed
+                if (JSON.stringify(newImages) !== JSON.stringify(allImages)) {
+                    allImages = newImages;
+                    renderGrid();
                 }
-
-                displayMoreImages();
-            } catch (error) {
-                console.error('Error loading images:', error);
-                document.getElementById('content').innerHTML = '<div class="empty-state">Error loading images</div>';
-            }
+            } catch (e) { console.error(e); }
         }
 
-        function displayMoreImages() {
+        function renderGrid() {
             const grid = document.getElementById('imageGrid');
-            const endIndex = Math.min(displayedCount + IMAGES_PER_PAGE, allImages.length);
-
-            for (let i = displayedCount; i < endIndex; i++) {
-                const filename = allImages[i];
-                const imageUrl = `/images/${currentCamera}/${currentDate}/${filename}`;
-
-                const div = document.createElement('div');
-                div.className = 'image-item';
-                div.innerHTML = '<div class="image-item-placeholder">Loading...</div>';
-                div.onclick = () => openModal(imageUrl, filename);
-
-                const img = document.createElement('img');
-                img.src = imageUrl;
-                img.onload = () => {
-                    div.innerHTML = '';
-                    div.appendChild(img);
-                    img.classList.add('loaded');
+            document.getElementById('imageCount').textContent = `${allImages.length} Captures`;
+            document.getElementById('initialState').style.display = 'none';
+            grid.innerHTML = '';
+            
+            allImages.forEach((img, idx) => {
+                const url = `/images/${currentCamera}/${currentDate}/${img}`;
+                // Extract time from filename (detection_YYYY-MM-DD HH:MM:SS.f_HASH_ID.png)
+                const parts = img.split('_');
+                const timePart = parts[1] || '';
+                const timeOnly = timePart.includes(' ') ? timePart.split(' ')[1].split('.')[0] : 'Unknown';
+                
+                const card = document.createElement('div');
+                card.className = 'image-card';
+                card.innerHTML = `
+                    <div class="image-wrapper">
+                        <div class="spinner" style="position:absolute"></div>
+                        <img src="${url}" loading="lazy">
+                    </div>
+                    <div class="card-footer">
+                        <span class="timestamp">${timeOnly}</span>
+                        <div class="meta-tags"><span class="tag">AI Match</span></div>
+                    </div>
+                `;
+                
+                const imgEl = card.querySelector('img');
+                imgEl.onload = () => {
+                    imgEl.classList.add('loaded');
+                    const s = card.querySelector('.spinner');
+                    if (s) s.remove();
                 };
-                img.onerror = () => {
-                    div.innerHTML = '<div class="image-item-placeholder">Failed to load</div>';
-                };
+                
+                card.onclick = () => openLightbox(idx);
+                grid.appendChild(card);
+            });
+        }
 
-                grid.appendChild(div);
-            }
-
-            displayedCount = endIndex;
-
-            // Update load more button
-            const loadMoreBtn = document.querySelector('.load-more');
-            loadMoreBtn.innerHTML = '';
-            if (displayedCount < allImages.length) {
-                const btn = document.createElement('button');
-                btn.className = 'load-more-btn';
-                btn.textContent = `Load More (${displayedCount}/${allImages.length})`;
-                btn.onclick = displayMoreImages;
-                loadMoreBtn.appendChild(btn);
-            } else if (allImages.length > 0) {
-                const msg = document.createElement('div');
-                msg.style.color = '#666';
-                msg.style.fontSize = '12px';
-                msg.textContent = `Showing all ${allImages.length} images`;
-                loadMoreBtn.appendChild(msg);
+        async function pollNewImages() {
+            if (!currentCamera || !currentDate) return;
+            // Only poll if we are on the current date
+            const todayStr = new Date().toISOString().split('T')[0];
+            if (currentDate === todayStr) {
+                await loadImages(false);
             }
         }
 
-        function handleScroll() {
-            const content = document.getElementById('content');
-            const scrollPercentage = (content.scrollTop + content.clientHeight) / content.scrollHeight;
+        function openLightbox(index) {
+            currentIndex = index;
+            const img = allImages[index];
+            const url = `/images/${currentCamera}/${currentDate}/${img}`;
+            
+            document.getElementById('mainImg').src = url;
+            document.getElementById('lightboxTime').textContent = img.split('_')[1]?.split('.')[0] || 'Image';
+            document.getElementById('lightboxFile').textContent = img;
+            document.getElementById('lightbox').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
 
-            if (scrollPercentage > 0.8 && displayedCount < allImages.length) {
-                displayMoreImages();
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        function navigate(dir) {
+            const nextIdx = currentIndex + dir;
+            if (nextIdx >= 0 && nextIdx < allImages.length) {
+                openLightbox(nextIdx);
             }
-        }
-
-        function openModal(imageUrl, filename) {
-            document.getElementById('modalImage').src = imageUrl;
-            document.getElementById('modalInfo').textContent = filename;
-            document.getElementById('modal').classList.add('active');
-        }
-
-        function closeModal() {
-            document.getElementById('modal').classList.remove('active');
         }
 
         init();
