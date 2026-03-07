@@ -50,12 +50,16 @@ async def get_images(camera: str, date: str):
     if not date_path.exists():
         return []
 
-    images = sorted([
-        f.name for f in date_path.iterdir()
+    # Get all image files with their modification times
+    image_files = [
+        f for f in date_path.iterdir()
         if f.is_file() and f.suffix.lower() in [".png", ".jpg", ".jpeg"]
-    ], reverse=True)
-
-    return images
+    ]
+    
+    # Sort by modification time descending (newest first)
+    image_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+    
+    return [f.name for f in image_files]
 
 
 @app.get("/images/{camera}/{date}/{filename}")
