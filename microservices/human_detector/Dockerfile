@@ -22,4 +22,12 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY shared/ ./shared/
 COPY human_detector/ .
 
+# Pre-download YOLOv8n model and setup config directory with correct permissions
+RUN mkdir -p /root/.config/Ultralytics && \
+    python -c "from ultralytics import YOLO; YOLO('yolov8n.pt')" && \
+    mkdir -p /.ultralytics && \
+    chmod -R 777 /.ultralytics /root/.config
+
+ENV YOLO_CONFIG_DIR=/.ultralytics
+
 CMD ["python", "human_detector.py"]

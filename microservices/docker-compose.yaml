@@ -13,12 +13,15 @@
 #
 # Default services (always run):
 #   - rabbitmq: Message broker
-#   - human_detector: ML detection service (5 replicas)
+#   - human_detector: ML detection service (8 replicas)
 #   - alert_service: Alert notifications
 #   - viewer_service: Web UI for browsing captures
 
 ---
 x-frame-capturer: &frame-capturer
+  build:
+    context: .
+    dockerfile: frame_capturer/Dockerfile
   image: microservices_frame_capturer:latest
   env_file:
     - .env
@@ -26,7 +29,8 @@ x-frame-capturer: &frame-capturer
     SUBTYPE: 0
   restart: unless-stopped
   depends_on:
-    - rabbitmq
+    rabbitmq:
+      condition: service_healthy
   networks:
     - detection
 
@@ -42,15 +46,17 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
     tmpfs:
       - /var/lib/rabbitmq:rw,noexec,nosuid,size=256m
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
     networks:
       - detection
 
   frame_capturer:
-    build:
-      context: .
-      dockerfile: frame_capturer/Dockerfile
-    image: microservices_frame_capturer:latest
+    <<: *frame-capturer
     profiles: [build]
 
   # Camera 1 - Enable with: docker compose --profile cam1 up
@@ -113,6 +119,7 @@ services:
       FRAME_HEIGHT: 576
     profiles: [cam7]
 
+  # Neighbour
   frame_capturer_8:
     <<: *frame-capturer
     container_name: frame_capturer_8
@@ -124,7 +131,7 @@ services:
     profiles: [cam8]
 
   # Human Detection Service - Processes frames from all cameras
-  # Runs 5 replicas for parallel processing
+  # Runs 8 replicas for parallel processing
   human_detector:
     build:
       context: .
@@ -132,13 +139,24 @@ services:
     image: microservices_human_detector:latest
     env_file:
       - .env
+    environment:
+      OMP_NUM_THREADS: "2"
+      OPENBLAS_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+      YOLO_CONFIG_DIR: "/.ultralytics"
+      YOLO_VERBOSE: "False"
     volumes:
       - ./captures:/app/captures
     restart: unless-stopped
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     deploy:
-      replicas: 5
+      replicas: 8
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 512M
     networks:
       - detection
 
@@ -152,7 +170,8 @@ services:
       - .env
     restart: unless-stopped
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     networks:
       - detection
 
