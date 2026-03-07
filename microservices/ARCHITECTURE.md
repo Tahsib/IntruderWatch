@@ -62,7 +62,7 @@ IntruderWatch is an intruder detection system built as a set of microservices co
   - Draws bounding boxes on the frame
   - Saves the annotated frame as a PNG to `/app/captures/camera_{id}/{date}/`
   - Publishes a JSON alert to `alert_queue` with camera ID and timestamp
-- Runs with multiple replicas (default 5) for parallel processing
+- Runs with multiple replicas (default 8) for parallel processing
 
 **Key config:**
 | Variable | Description | Default |
@@ -171,7 +171,7 @@ Management UI available at port 15672.
 
 ### Image build strategy
 - **frame_capturer**: Single image (`microservices_frame_capturer:latest`) shared by all camera instances
-- **human_detector**: Single image with 5 replicas via `deploy.replicas`
+- **human_detector**: Single image with 8 replicas via `deploy.replicas`
 - **alert_service**: Single instance
 - **viewer_service**: Single instance (FastAPI web UI)
 

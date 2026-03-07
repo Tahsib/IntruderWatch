@@ -118,7 +118,13 @@ def capture_stream(ip, channel, stream, username, password, alert_cooldown, star
             current_time = datetime.now()
             current_hour = current_time.hour
 
-            if current_hour >= start_time and current_hour < end_time:
+            is_active = False
+            if start_time <= end_time:
+                is_active = start_time <= current_hour < end_time
+            else:
+                is_active = current_hour >= start_time or current_hour < end_time
+
+            if is_active:
                 ret, frame = cap.read()
                 if ret:
                     # Detect human presence
