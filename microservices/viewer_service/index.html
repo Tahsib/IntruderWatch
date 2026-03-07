@@ -399,6 +399,14 @@
         let currentIndex = -1;
         let pollInterval = null;
 
+        function getLocalDateStr() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
         async function init() {
             await loadCameras();
             lucide.createIcons();
@@ -420,7 +428,13 @@
             if (currentCamera) {
                 const camEl = Array.from(document.querySelectorAll('.camera-item'))
                     .find(el => el.dataset.id === currentCamera);
-                if (camEl) await selectCamera(currentCamera, camEl, true);
+                if (camEl) {
+                    await selectCamera(currentCamera, camEl, true);
+                } else {
+                    // Reset if saved camera no longer exists
+                    currentCamera = null;
+                    currentDate = null;
+                }
             }
 
             // Start polling for new images
@@ -455,26 +469,28 @@
             document.getElementById('cameraNameDisplay').textContent = cam.replace('camera_', 'Camera ');
             document.getElementById('cameraStatus').classList.add('active');
 
-            const res = await fetch(`${API_BASE}/cameras/${cam}/dates`);
-            const dates = await res.json();
-            const select = document.getElementById('dateSelect');
-            select.innerHTML = '<option value="">Select Date</option>';
-            dates.forEach(d => {
-                const opt = document.createElement('option');
-                opt.value = d; opt.textContent = d;
-                select.appendChild(opt);
-            });
-            select.disabled = false;
-            
-            if (isInitial && currentDate && dates.includes(currentDate)) {
-                select.value = currentDate;
-            } else if (dates.length > 0) {
-                currentDate = dates[0];
-                select.value = currentDate;
-                localStorage.setItem('last_date', currentDate);
-            }
-            
-            loadImages(true);
+            try {
+                const res = await fetch(`${API_BASE}/cameras/${cam}/dates`);
+                const dates = await res.json();
+                const select = document.getElementById('dateSelect');
+                select.innerHTML = '<option value="">Select Date</option>';
+                dates.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d; opt.textContent = d;
+                    select.appendChild(opt);
+                });
+                select.disabled = false;
+                
+                if (isInitial && currentDate && dates.includes(currentDate)) {
+                    select.value = currentDate;
+                } else if (dates.length > 0) {
+                    currentDate = dates[0];
+                    select.value = currentDate;
+                    localStorage.setItem('last_date', currentDate);
+                }
+                
+                loadImages(true);
+            } catch (e) { console.error(e); }
         }
 
         async function loadImages(showSpinner = false) {
@@ -489,57 +505,84 @@
                 const res = await fetch(`${API_BASE}/cameras/${currentCamera}/dates/${currentDate}/images`);
                 const newImages = await res.json();
                 
-                // Only redraw if the image list changed
-                if (JSON.stringify(newImages) !== JSON.stringify(allImages)) {
-                    allImages = newImages;
-                    renderGrid();
-                }
+                const grid = document.getElementById('imageGrid');
+                if (showSpinner) grid.innerHTML = ''; 
+
+                const currentIds = new Set(newImages.map(img => `img-${img.replace(/[^a-zA-Z0-9]/g, '-')}`));
+                
+                // 1. Remove images that are no longer on the server
+                Array.from(grid.children).forEach(child => {
+                    if (child.id && !currentIds.has(child.id)) {
+                        child.remove();
+                    }
+                });
+
+                // 2. Add new images that aren't in the grid yet
+                [...newImages].reverse().forEach(img => {
+                    const id = `img-${img.replace(/[^a-zA-Z0-9]/g, '-')}`;
+                    if (!document.getElementById(id)) {
+                        const card = createImageCard(img);
+                        card.id = id;
+                        grid.insertBefore(card, grid.firstChild);
+                    }
+                });
+
+                allImages = newImages;
+                document.getElementById('imageCount').textContent = `${allImages.length} Captures`;
+                document.getElementById('initialState').style.display = 'none';
+                
+                const spinner = grid.querySelector('.spinner');
+                if (spinner) spinner.remove();
+
             } catch (e) { console.error(e); }
         }
 
-        function renderGrid() {
-            const grid = document.getElementById('imageGrid');
-            document.getElementById('imageCount').textContent = `${allImages.length} Captures`;
-            document.getElementById('initialState').style.display = 'none';
-            grid.innerHTML = '';
+        function createImageCard(img) {
+            const url = `/images/${currentCamera}/${currentDate}/${img}`;
+            const parts = img.split('_');
+            const timePart = parts[1] || '';
+            const timeOnly = timePart.includes(' ') ? timePart.split(' ')[1].split('.')[0] : 'Unknown';
+
+            const card = document.createElement('div');
+            card.className = 'image-card';
+            card.innerHTML = `
+                <div class="image-wrapper">
+                    <div class="spinner" style="position:absolute"></div>
+                    <img src="${url}" loading="lazy">
+                </div>
+                <div class="card-footer">
+                    <span class="timestamp">${timeOnly}</span>
+                    <div class="meta-tags"><span class="tag">AI Match</span></div>
+                </div>
+            `;
             
-            allImages.forEach((img, idx) => {
-                const url = `/images/${currentCamera}/${currentDate}/${img}`;
-                // Extract time from filename (detection_YYYY-MM-DD HH:MM:SS.f_HASH_ID.png)
-                const parts = img.split('_');
-                const timePart = parts[1] || '';
-                const timeOnly = timePart.includes(' ') ? timePart.split(' ')[1].split('.')[0] : 'Unknown';
-                
-                const card = document.createElement('div');
-                card.className = 'image-card';
-                card.innerHTML = `
-                    <div class="image-wrapper">
-                        <div class="spinner" style="position:absolute"></div>
-                        <img src="${url}" loading="lazy">
-                    </div>
-                    <div class="card-footer">
-                        <span class="timestamp">${timeOnly}</span>
-                        <div class="meta-tags"><span class="tag">AI Match</span></div>
-                    </div>
-                `;
-                
-                const imgEl = card.querySelector('img');
-                imgEl.onload = () => {
-                    imgEl.classList.add('loaded');
-                    const s = card.querySelector('.spinner');
-                    if (s) s.remove();
-                };
-                
-                card.onclick = () => openLightbox(idx);
-                grid.appendChild(card);
-            });
+            const imgEl = card.querySelector('img');
+            imgEl.onload = () => {
+                imgEl.classList.add('loaded');
+                const s = card.querySelector('.spinner');
+                if (s) s.remove();
+            };
+            
+            card.onclick = () => {
+                const actualIndex = allImages.indexOf(img);
+                openLightbox(actualIndex);
+            };
+            return card;
+        }
+
+        function renderGrid() {
+            // This is now just a fallback, loadImages handles the heavy lifting
+            loadImages(true);
         }
 
         async function pollNewImages() {
             if (!currentCamera || !currentDate) return;
-            // Only poll if we are on the current date
-            const todayStr = new Date().toISOString().split('T')[0];
-            if (currentDate === todayStr) {
+            
+            // For security/live monitoring, we should poll if it's "today"
+            // Using a more robust local date check
+            const localToday = getLocalDateStr();
+            
+            if (currentDate === localToday) {
                 await loadImages(false);
             }
         }
