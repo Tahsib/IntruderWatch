@@ -131,9 +131,12 @@ def capture_frames(ip, channel, stream, username, password, queue_name, frame_wi
                     success, img_encode = cv2.imencode('.png', frame)
                     if success:
                         byte_data = img_encode.tobytes()
+                        # Calculate hash on the actual data being sent (PNG bytes)
+                        png_hash = hashlib.sha256(byte_data).hexdigest()
+                        
                         payload = {
                             "camera": channel,
-                            "hash": raw_hash,
+                            "hash": png_hash,
                             "image": base64.b64encode(byte_data).decode('utf-8')
                         }
                         message = json.dumps(payload)
@@ -144,9 +147,9 @@ def capture_frames(ip, channel, stream, username, password, queue_name, frame_wi
                             properties=pika.BasicProperties(delivery_mode=2)
                         )
                         last_sent_time = now_ts
-                        last_sent_hash = raw_hash
+                        last_sent_hash = raw_hash # Keep tracking raw_hash for duplicate detection
                         frames_sent += 1
-                        logger.debug(f"Frame sent to queue (hash: {raw_hash[:8]})")
+                        logger.debug(f"Frame sent to queue (hash: {png_hash[:8]})")
                     else:
                         logger.error("Image encoding failed!")
                     
