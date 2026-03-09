@@ -10,6 +10,7 @@ import base64
 import json
 from datetime import datetime
 from shared.rabbitmq_client import connect_rabbitmq
+from prometheus_client import start_http_server, Counter
 
 # Configure logging
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -18,6 +19,12 @@ logging.basicConfig(
     format="%(asctime)s [capturer:%(name)s] [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
 )
+
+# Prometheus Metrics
+FRAMES_CAPTURED = Counter('frame_capturer_captured_total', 'Total frames captured from stream', ['camera_id'])
+FRAMES_SENT = Counter('frame_capturer_sent_total', 'Total frames sent to queue', ['camera_id'])
+FRAMES_SKIPPED = Counter('frame_capturer_skipped_total', 'Total frames skipped (duplicate or rate-limit)', ['camera_id', 'reason'])
+CAPTURE_ERRORS = Counter('frame_capturer_errors_total', 'Total capture or processing errors', ['camera_id', 'error_type'])
 
 
 def is_within_time_frame(start_time, end_time):
@@ -98,6 +105,7 @@ def capture_frames(ip, channel, stream, username, password, queue_name, frame_wi
                     
                     if len(raw_frame) != frame_size:
                         logger.error("Network sync lost (incomplete frame). Reconnecting stream...")
+                        CAPTURE_ERRORS.labels(camera_id=channel, error_type="network_sync_lost").inc()
                         try:
                             pipe.kill()
                             pipe.wait(timeout=1)
@@ -108,6 +116,7 @@ def capture_frames(ip, channel, stream, username, password, queue_name, frame_wi
                         break
                     
                     frames_captured += 1
+                    FRAMES_CAPTURED.labels(camera_id=channel).inc()
                     frame = np.frombuffer(raw_frame, dtype=np.uint8).reshape((height, width, 3))
                     raw_hash = hashlib.sha256(raw_frame).hexdigest()
 
@@ -119,11 +128,13 @@ def capture_frames(ip, channel, stream, username, password, queue_name, frame_wi
                     now_ts = time.time()
                     if now_ts - last_sent_time < 1.0:
                         frames_skipped += 1
+                        FRAMES_SKIPPED.labels(camera_id=channel, reason="rate_limit").inc()
                         time.sleep(0.01)
                         continue
 
                     if raw_hash == last_sent_hash:
                         frames_duplicate += 1
+                        FRAMES_SKIPPED.labels(camera_id=channel, reason="duplicate").inc()
                         logger.debug(f"Duplicate frame suppressed ({raw_hash[:8]})")
                         last_sent_time = now_ts
                         continue
@@ -149,9 +160,11 @@ def capture_frames(ip, channel, stream, username, password, queue_name, frame_wi
                         last_sent_time = now_ts
                         last_sent_hash = raw_hash # Keep tracking raw_hash for duplicate detection
                         frames_sent += 1
+                        FRAMES_SENT.labels(camera_id=channel).inc()
                         logger.debug(f"Frame sent to queue (hash: {png_hash[:8]})")
                     else:
                         logger.error("Image encoding failed!")
+                        CAPTURE_ERRORS.labels(camera_id=channel, error_type="encoding_failed").inc()
                     
                     time.sleep(FRAME_SLEEP)
                 else:
@@ -185,6 +198,13 @@ def capture_frames(ip, channel, stream, username, password, queue_name, frame_wi
 
 
 if __name__ == "__main__":
+    # Start Prometheus metrics server
+    try:
+        start_http_server(8001)
+        logging.info("Prometheus metrics server started on port 8001")
+    except Exception as e:
+        logging.error(f"Failed to start Prometheus metrics server: {e}")
+
     stream_ip = os.getenv("STREAM_IP")
     stream_username = os.getenv("STREAM_USERNAME")
     stream_password = os.getenv("STREAM_PASSWORD")

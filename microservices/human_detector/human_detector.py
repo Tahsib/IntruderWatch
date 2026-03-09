@@ -10,6 +10,7 @@ import socket
 from datetime import datetime
 from ultralytics import YOLO
 from shared.rabbitmq_client import connect_rabbitmq
+from prometheus_client import start_http_server, Counter, Histogram, Gauge
 
 # Get the container hostname to identify the detector instance
 INSTANCE_ID = socket.gethostname()
@@ -25,6 +26,12 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
+# Prometheus Metrics
+FRAMES_PROCESSED = Counter('human_detector_frames_processed_total', 'Total frames processed', ['camera_id', 'worker_id'])
+HUMANS_DETECTED = Counter('human_detector_humans_detected_total', 'Total humans detected', ['camera_id', 'worker_id'])
+PROCESSING_TIME = Histogram('human_detector_processing_seconds', 'Time spent processing a frame', ['camera_id', 'worker_id'])
+ERRORS_TOTAL = Counter('human_detector_errors_total', 'Total processing errors', ['camera_id', 'worker_id', 'error_type'])
+ACTIVE_PROCESSING = Gauge('human_detector_active_processing', 'Number of frames currently being processed', ['worker_id'])
 
 def detect_humans(model, frame, confidence_threshold):
     results = model(frame, classes=[0], conf=confidence_threshold, verbose=False)[0]
@@ -58,6 +65,7 @@ def consume_frames(queue_name):
 
     def callback(ch, method, properties, body):
         nonlocal frame_counter
+        camera_id = "unknown"
         try:
             payload = json.loads(body.decode('utf-8'))
             camera_id = payload.get("camera", "unknown")
@@ -81,6 +89,7 @@ def consume_frames(queue_name):
             actual_hash = hashlib.sha256(byte_data).hexdigest()
             if actual_hash != expected_hash:
                 logging.warning(f"Hash mismatch! Frame may be corrupted.")
+                ERRORS_TOTAL.labels(camera_id=camera_id, worker_id=INSTANCE_ID, error_type="hash_mismatch").inc()
                 ch.basic_ack(delivery_tag=method.delivery_tag)
                 return
 
@@ -91,43 +100,48 @@ def consume_frames(queue_name):
             # Validate frame was decoded successfully
             if frame is None:
                 logging.error(f"cv2.imdecode failed - frame is corrupted or incomplete.")
+                ERRORS_TOTAL.labels(camera_id=camera_id, worker_id=INSTANCE_ID, error_type="decode_error").inc()
                 ch.basic_ack(delivery_tag=method.delivery_tag)
                 return
 
             # NOW perform slow YOLO processing
             logging.debug(f"Processing frame from camera {camera_id} with hash {expected_hash[:8]}...")
 
-            human_detected, processed_frame = detect_humans(model, frame, DETECTION_CONFIDENCE)
-            timestamp_dt = datetime.now()
-            timestamp = timestamp_dt.strftime("%Y-%m-%d %H:%M:%S.%f")
+            with PROCESSING_TIME.labels(camera_id=camera_id, worker_id=INSTANCE_ID).time():
+                with ACTIVE_PROCESSING.labels(worker_id=INSTANCE_ID).track_inprogress():
+                    human_detected, processed_frame = detect_humans(model, frame, DETECTION_CONFIDENCE)
+                    timestamp_dt = datetime.now()
+                    timestamp = timestamp_dt.strftime("%Y-%m-%d %H:%M:%S.%f")
 
-            if human_detected:
-                # Store this hash to prevent re-processing the same image
-                last_saved_hashes[camera_id] = expected_hash
-                
-                alert_payload = json.dumps({
-                    "camera": camera_id,
-                    "timestamp": timestamp,
-                })
-                logging.info(f"*** HUMAN DETECTED (Camera {camera_id}) *** Publishing alert...")
-                channel.basic_publish(
-                    exchange="", routing_key="alert_queue", body=alert_payload
-                )
+                    if human_detected:
+                        # Store this hash to prevent re-processing the same image
+                        last_saved_hashes[camera_id] = expected_hash
+                        
+                        alert_payload = json.dumps({
+                            "camera": camera_id,
+                            "timestamp": timestamp,
+                        })
+                        logging.info(f"*** HUMAN DETECTED (Camera {camera_id}) *** Publishing alert...")
+                        channel.basic_publish(
+                            exchange="", routing_key="alert_queue", body=alert_payload
+                        )
+                        HUMANS_DETECTED.labels(camera_id=camera_id, worker_id=INSTANCE_ID).inc()
 
-                date_only = timestamp.split()[0]
-                detection_dir = os.path.join(f"/app/captures/camera_{camera_id}", date_only)
-                if not os.path.exists(detection_dir):
-                    os.makedirs(detection_dir, exist_ok=True)
-                    logging.info(f"{detection_dir} directory created!")
+                        date_only = timestamp.split()[0]
+                        detection_dir = os.path.join(f"/app/captures/camera_{camera_id}", date_only)
+                        if not os.path.exists(detection_dir):
+                            os.makedirs(detection_dir, exist_ok=True)
+                            logging.info(f"{detection_dir} directory created!")
 
-                # Save the frame with detected human, the hash, and the worker instance ID in filename
-                filename = f"{detection_dir}/det_{timestamp}_{expected_hash[:8]}_{INSTANCE_ID[:6]}.png"
-                success = cv2.imwrite(filename, processed_frame)
-                if success:
-                    logging.info(f"Saved detection frame to {filename}")
-                else:
-                    logging.error(f"Failed to save frame to {filename}")
+                        # Save the frame with detected human, the hash, and the worker instance ID in filename
+                        filename = f"{detection_dir}/det_{timestamp}_{expected_hash[:8]}_{INSTANCE_ID[:6]}.png"
+                        success = cv2.imwrite(filename, processed_frame)
+                        if success:
+                            logging.info(f"Saved detection frame to {filename}")
+                        else:
+                            logging.error(f"Failed to save frame to {filename}")
 
+            FRAMES_PROCESSED.labels(camera_id=camera_id, worker_id=INSTANCE_ID).inc()
             logging.debug("Processing done!")
             
             # Acknowledge ONLY after successful processing
@@ -135,6 +149,7 @@ def consume_frames(queue_name):
 
         except Exception as e:
             logging.error(f"Error processing frame: {e}")
+            ERRORS_TOTAL.labels(camera_id=camera_id, worker_id=INSTANCE_ID, error_type="exception").inc()
             # Still acknowledge so message doesn't pile up
             try:
                 ch.basic_ack(delivery_tag=method.delivery_tag)
@@ -154,5 +169,12 @@ def consume_frames(queue_name):
 
 
 if __name__ == "__main__":
+    # Start Prometheus metrics server immediately
+    try:
+        start_http_server(8000)
+        logging.info("Prometheus metrics server started on port 8000")
+    except Exception as e:
+        logging.error(f"Failed to start Prometheus metrics server: {e}")
+
     DETECTION_CONFIDENCE = float(os.getenv("DETECTION_CONFIDENCE", "0.8"))
     consume_frames(queue_name="frame_queue")

@@ -14,4 +14,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY shared/ ./shared/
 COPY frame_capturer/ .
 
+EXPOSE 8001
+
 CMD ["python", "frame_capturer.py"]

@@ -14,4 +14,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY shared/ ./shared/
 COPY alert_service/ .
 
+EXPOSE 8002
+
 CMD ["python", "alert_service.py"]
