@@ -167,6 +167,26 @@ Management UI available at port 15672.
 
 ---
 
+### 7. Monitoring Stack (Prometheus & Grafana)
+
+**Purpose:** Collects and visualizes real-time metrics across all microservices and the host machine.
+
+**How it works:**
+- Every service exposes an HTTP endpoint on ports `8000`-`8003` using `prometheus-client`.
+- **Prometheus** scrapes these endpoints periodically (along with `node_exporter` for host system metrics).
+- **Grafana** connects to Prometheus as a data source and provides pre-configured dashboards.
+- Key metrics tracked include:
+  - Frames captured, skipped (duplicate/rate-limit), and sent
+  - Processing time and human detections per camera/worker
+  - Twilio alert notifications sent and errors
+  - Viewer HTTP request latency and image serving counts
+
+**Access:**
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3000` (Default login: `admin`/`admin`)
+
+---
+
 ## Docker & Deployment
 
 ### Image build strategy

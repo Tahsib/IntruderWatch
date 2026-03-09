@@ -9,6 +9,7 @@ IntruderWatch is a real-time intruder detection system with frame ingestion, hum
 - `microservices/human_detector/` - Consumes frames, runs YOLOv8n detection, saves detection images
 - `microservices/alert_service/` - Consumes alerts and sends notifications (Twilio)
 - `microservices/viewer_service/` - Web UI for browsing captured images by camera and date
+- `microservices/prometheus.yml` & `microservices/grafana/` - Monitoring stack for metrics collection and visualization
 
 **Monolith** (legacy):
 - `monolith/` - Original single-container detector using MobileNet-SSD (kept for reference)
@@ -108,6 +109,8 @@ docker compose logs -f viewer_service
 - Viewer UI: http://localhost:8085
 - RabbitMQ Management: http://localhost:15672
 - API: http://localhost:8085/api/cameras
+- Grafana Dashboard: http://localhost:3000 (login: admin/admin)
+- Prometheus Metrics: http://localhost:9090
 
 ### Monolith (Legacy)
 
@@ -173,7 +176,6 @@ docker compose --profile ch1,ch2,ch3 up -d
 ## Future Improvements
 
 - Add image pruning/retention policy (auto-delete frames older than N days)
-- Implement metrics collection (Prometheus) for monitoring
 - Add database backend (PostgreSQL) for detection metadata and statistics
 - Support multiple detection models (edge/cloud deployment)
 - Add authenticated access to viewer service

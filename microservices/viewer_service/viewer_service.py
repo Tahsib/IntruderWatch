@@ -1,8 +1,45 @@
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
+from prometheus_client import start_http_server, Counter, Histogram
+import time
 
 app = FastAPI()
+
+# Prometheus Metrics
+HTTP_REQUESTS_TOTAL = Counter('viewer_service_http_requests_total', 'Total HTTP requests', ['method', 'endpoint', 'status_code'])
+REQUEST_LATENCY = Histogram('viewer_service_http_request_duration_seconds', 'HTTP request latency', ['endpoint'])
+IMAGES_SERVED_TOTAL = Counter('viewer_service_images_served_total', 'Total images served')
+
+@app.middleware("http")
+async def monitor_requests(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    duration = time.time() - start_time
+    
+    # Simple endpoint classification
+    endpoint = request.url.path
+    if endpoint.startswith("/images/"):
+        endpoint = "/images/{camera}/{date}/{filename}"
+    elif endpoint.startswith("/api/cameras/"):
+        parts = endpoint.split("/")
+        if len(parts) == 4:
+            endpoint = "/api/cameras/{camera}/dates"
+        elif len(parts) == 6:
+            endpoint = "/api/cameras/{camera}/dates/{date}/images"
+    
+    HTTP_REQUESTS_TOTAL.labels(method=request.method, endpoint=endpoint, status_code=str(response.status_code)).inc()
+    REQUEST_LATENCY.labels(endpoint=endpoint).observe(duration)
+    
+    return response
+
+@app.on_event("startup")
+async def startup_event():
+    # Start Prometheus metrics server
+    try:
+        start_http_server(8003)
+    except Exception:
+        pass
 
 CAPTURES_DIR = Path("/app/captures")
 
@@ -74,4 +111,5 @@ async def serve_image(camera: str, date: str, filename: str):
     if not str(image_path).startswith(str(CAPTURES_DIR)):
         return FileResponse("", status_code=403)
 
+    IMAGES_SERVED_TOTAL.inc()
     return FileResponse(image_path)

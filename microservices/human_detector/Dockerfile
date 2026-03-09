@@ -30,4 +30,6 @@ RUN mkdir -p /root/.config/Ultralytics && \
 
 ENV YOLO_CONFIG_DIR=/.ultralytics
 
+EXPOSE 8000
+
 CMD ["python", "human_detector.py"]

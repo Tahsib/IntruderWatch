@@ -1,0 +1,48 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'node_exporter'
+    static_configs:
+      - targets: ['node_exporter:9100']
+
+  - job_name: 'human_detector'
+    dns_sd_configs:
+      - names:
+          - 'human_detector'
+        type: 'A'
+        port: 8000
+
+  - job_name: 'frame_capturer'
+    static_configs:
+      - targets:
+          - 'frame_capturer_1:8001'
+          - 'frame_capturer_2:8001'
+          - 'frame_capturer_3:8001'
+          - 'frame_capturer_4:8001'
+          - 'frame_capturer_5:8001'
+          - 'frame_capturer_6:8001'
+          - 'frame_capturer_7:8001'
+          - 'frame_capturer_8:8001'
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: 'frame_capturer_(\d+):8001'
+        target_label: camera_id
+        replacement: '$1'
+
+  - job_name: 'alert_service'
+    static_configs:
+      - targets: ['alert_service:8002']
+
+  - job_name: 'viewer_service'
+    static_configs:
+      - targets: ['viewer_service:8003']
+
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['rabbitmq:15692']
