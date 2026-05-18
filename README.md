@@ -2,6 +2,69 @@
 
 IntruderWatch is an industry-grade, real-time intruder detection system optimized for high-end hardware (**Intel i7-12700K & AMD RX 6800 XT**). It leverages **YOLO11 Large** for surgical detection precision and **AMD ROCm** for high-speed GPU acceleration.
 
+## 🏗️ System Architecture
+
+```mermaid
+graph TD
+    subgraph "Camera Network"
+        C1[Camera 1: 1080P]
+        C2[Camera 2: 1080N]
+        C3[Camera 3: 1080P]
+        CX[Other Cameras...]
+    end
+
+    subgraph "Intel i7-12700K (Host)"
+        subgraph "Ingestion Pipeline (CPU)"
+            FC[Frame Capturer: FFmpeg]
+            HASH[SHA-256 Deduplication]
+            ENC[JPEG 85% Encoder]
+        end
+
+        subgraph "Message Broker (RAM)"
+            RMQ[(RabbitMQ: 2GB tmpfs)]
+        end
+
+        subgraph "Observability Stack"
+            PROM[Prometheus]
+            GRAF[Grafana Master Dashboard]
+            CADV[cAdvisor]
+            NODE[Node Exporter]
+        end
+    end
+
+    subgraph "AMD RX 6800 XT (GPU)"
+        subgraph "AI Inference (ROCm)"
+            DET[Human Detector: YOLO11 Large]
+            IMG[1600px Super-Res Buffer]
+        end
+    end
+
+    subgraph "Detections & Alerts"
+        ALRT[Alert Service]
+        VIEW[FastAPI Viewer]
+        TWLO[Twilio API]
+        DISK[(SSD Captures)]
+    end
+
+    %% Traffic Flow
+    C1 & C2 & C3 & CX -- "RTSP Stream" --> FC
+    FC -- "Raw BGR" --> HASH
+    HASH -- "Unique Frames" --> ENC
+    ENC -- "Base64 JPEG" --> RMQ
+    RMQ -- "Queue: frame_queue" --> DET
+    DET -- "ROCm / VRAM" --> IMG
+    IMG -- "Human? = YES" --> RMQ
+    RMQ -- "Queue: alert_queue" --> ALRT
+    IMG -- "Save Frame" --> DISK
+    ALRT -- "Async Call" --> TWLO
+    DISK -- "Static Serve" --> VIEW
+    
+    %% Monitoring Flow
+    FC & DET & ALRT & RMQ -- "Metrics" --> PROM
+    NODE & CADV -- "Hardware Metrics" --> PROM
+    PROM -- "PromQL" --> GRAF
+```
+
 ## 🚀 Key Features (Ultra Quality Mode)
 
 - **AI Brain**: Upgraded to **YOLO11 Large (v11l)** for maximum accuracy and near-zero false positives.
