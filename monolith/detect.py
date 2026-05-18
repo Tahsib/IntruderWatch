@@ -66,7 +66,6 @@ def detect_human_mobilenet_ssd(net, frame):
     human_detected = False
     
     # Need to implement half body detections
-    half_body_detected = False
     
     for i in range(detections.shape[2]):
         confidence = detections[0, 0, i, 2]

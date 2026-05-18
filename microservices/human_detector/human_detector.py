@@ -133,8 +133,10 @@ def consume_frames(queue_name):
         except Exception as e:
             logging.error(f"Error processing frame: {e}")
             ERRORS_TOTAL.labels(camera_id=camera_id, worker_id=INSTANCE_ID, error_type="exception").inc()
-            try: ch.basic_ack(delivery_tag=method.delivery_tag)
-            except: pass
+            try:
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+            except Exception:
+                pass
 
     try:
         channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=False)

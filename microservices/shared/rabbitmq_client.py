@@ -41,7 +41,7 @@ def connect_rabbitmq(queue_names, retries=15, delay=5, frame_max=0):
                 channel.queue_declare(queue=q, durable=True)
             logger.info("Successfully connected to RabbitMQ at %s", host)
             return connection, channel
-        except (pika.exceptions.AMQPConnectionError, ConnectionRefusedError) as e:
+        except (pika.exceptions.AMQPConnectionError, ConnectionRefusedError):
             logger.info("RabbitMQ not ready yet (Attempt %d/%d). Waiting...", attempt, retries)
             if attempt < retries:
                 time.sleep(delay)
