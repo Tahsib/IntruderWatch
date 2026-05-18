@@ -1,4 +1,4 @@
-name: Lint and Build
+name: Lint and Validate
 
 on:
   push:
@@ -8,6 +8,7 @@ on:
 
 jobs:
   lint:
+    name: 🐍 Python Lint (Ruff)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,11 +21,25 @@ jobs:
       - name: Run Ruff
         run: ruff check .
 
-  build-test:
+  validate-infra:
+    name: 🐳 Docker Infrastructure Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validate Docker Compose
+      - name: Create Dummy .env
         run: |
           cd microservices
+          # Create a dummy .env to satisfy docker-compose validation
+          cp .env.example .env
+      - name: Validate Docker Compose Syntax
+        run: |
+          cd microservices
+          # Verifies docker-compose.yaml structure, indentation, and variable interpolation
           docker compose config --quiet
+      - name: Verify Dockerfile Existence
+        run: |
+          # Ensures all referenced Dockerfiles exist in the repository
+          test -f microservices/frame_capturer/Dockerfile
+          test -f microservices/human_detector/Dockerfile
+          test -f microservices/alert_service/Dockerfile
+          test -f microservices/viewer_service/Dockerfile
