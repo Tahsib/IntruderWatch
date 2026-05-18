@@ -126,6 +126,8 @@ services:
       LOG_LEVEL: INFO
       INFERENCE_SIZE: 1600
       HSA_OVERRIDE_GFX_VERSION: "10.3.0"
+      PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+      TRITON_CACHE_DIR: "/tmp/triton"
     devices:
       - /dev/kfd:/dev/kfd
       - /dev/dri:/dev/dri
