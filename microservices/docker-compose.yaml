@@ -1,22 +1,5 @@
 # IntruderWatch Microservices
 # ============================
-#
-# Usage:
-#   docker compose up                     # Run all services (default profile)
-#   docker compose --profile cam1 up      # Enable camera 1
-#   docker compose --profile cam1,cam2 up # Enable cameras 1 and 2
-#   docker compose up -d                  # Run in background
-#
-# Available profiles:
-#   cam1, cam2, cam3, cam4, cam5, cam6, cam7, cam8  - Individual camera frame capturers
-#   build - Build frame_capturer image only
-#
-# Default services (always run):
-#   - rabbitmq: Message broker
-#   - human_detector: ML detection service (8 replicas)
-#   - alert_service: Alert notifications
-#   - viewer_service: Web UI for browsing captures
-
 ---
 x-frame-capturer: &frame-capturer
   build:
@@ -27,113 +10,108 @@ x-frame-capturer: &frame-capturer
     - .env
   environment: &frame-capturer-env
     SUBTYPE: 0
+    FRAME_WIDTH: 1920
+    FRAME_HEIGHT: 1080
+    LOG_LEVEL: INFO
+    JPEG_QUALITY: 85
+    FRAME_SLEEP: 0.3
   restart: unless-stopped
   expose:
     - "8001"
   depends_on:
     rabbitmq:
       condition: service_healthy
+  deploy:
+    resources:
+      limits:
+        cpus: "1.0"
+        memory: 512M
   networks:
     - detection
 
 services:
   rabbitmq:
-    image: rabbitmq:3-management
+    image: rabbitmq:3-management-alpine
     container_name: rabbitmq
-    ports:
-      - "5672:5672"
-      - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
     tmpfs:
-      - /var/lib/rabbitmq:rw,noexec,nosuid,size=256m
+      - /var/lib/rabbitmq:rw,noexec,nosuid,size=2g
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
     networks:
       - detection
 
-  frame_capturer:
-    <<: *frame-capturer
-    profiles: [build]
-
-  # Camera 1 - Enable with: docker compose --profile cam1 up
+  # Camera Profiles
   frame_capturer_1:
     <<: *frame-capturer
     container_name: frame_capturer_1
-    environment:
-      <<: *frame-capturer-env
-      CHANNEL: 1
+    environment: { <<: *frame-capturer-env, CHANNEL: 1 }
     profiles: [cam1]
 
   frame_capturer_2:
     <<: *frame-capturer
     container_name: frame_capturer_2
-    environment:
+    environment: 
       <<: *frame-capturer-env
       CHANNEL: 2
+      FRAME_WIDTH: 960
+      FRAME_HEIGHT: 1080
     profiles: [cam2]
 
   frame_capturer_3:
     <<: *frame-capturer
     container_name: frame_capturer_3
-    environment:
-      <<: *frame-capturer-env
-      CHANNEL: 3
+    environment: { <<: *frame-capturer-env, CHANNEL: 3 }
     profiles: [cam3]
 
   frame_capturer_4:
     <<: *frame-capturer
     container_name: frame_capturer_4
-    environment:
-      <<: *frame-capturer-env
-      CHANNEL: 4
+    environment: { <<: *frame-capturer-env, CHANNEL: 4 }
     profiles: [cam4]
 
-  # Neighbour
   frame_capturer_5:
     <<: *frame-capturer
     container_name: frame_capturer_5
-    environment:
-      <<: *frame-capturer-env
-      CHANNEL: 5
+    environment: { <<: *frame-capturer-env, CHANNEL: 5 }
     profiles: [cam5]
 
   frame_capturer_6:
     <<: *frame-capturer
     container_name: frame_capturer_6
-    environment:
+    environment: 
       <<: *frame-capturer-env
       CHANNEL: 6
-    profiles: [cam6]  
+      FRAME_WIDTH: 960
+      FRAME_HEIGHT: 1080
+    profiles: [cam6]
 
   frame_capturer_7:
     <<: *frame-capturer
     container_name: frame_capturer_7
-    environment:
+    environment: 
       <<: *frame-capturer-env
       CHANNEL: 7
       FRAME_WIDTH: 960
       FRAME_HEIGHT: 576
     profiles: [cam7]
 
-  # Neighbour
   frame_capturer_8:
     <<: *frame-capturer
     container_name: frame_capturer_8
-    environment:
+    environment: 
       <<: *frame-capturer-env
       CHANNEL: 8
       FRAME_WIDTH: 960
       FRAME_HEIGHT: 576
     profiles: [cam8]
 
-  # Human Detection Service - Processes frames from all cameras
-  # Runs 8 replicas for parallel processing
   human_detector:
     build:
       context: .
@@ -142,11 +120,16 @@ services:
     env_file:
       - .env
     environment:
-      OMP_NUM_THREADS: "2"
-      OPENBLAS_NUM_THREADS: "2"
-      MKL_NUM_THREADS: "2"
-      YOLO_CONFIG_DIR: "/.ultralytics"
-      YOLO_VERBOSE: "False"
+      LOG_LEVEL: INFO
+      INFERENCE_SIZE: 1600
+      HSA_OVERRIDE_GFX_VERSION: "10.3.0"
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    security_opt:
+      - seccomp:unconfined
+    group_add:
+      - video
     volumes:
       - ./captures:/app/captures
     restart: unless-stopped
@@ -154,15 +137,14 @@ services:
       rabbitmq:
         condition: service_healthy
     deploy:
-      replicas: 8
+      replicas: 2
       resources:
         limits:
-          cpus: "0.75"
-          memory: 512M
+          cpus: "4.0"
+          memory: 12G
     networks:
       - detection
 
-  # Alert Service - Sends notifications for detected intruders
   alert_service:
     build:
       context: .
@@ -171,16 +153,17 @@ services:
     env_file:
       - .env
     restart: unless-stopped
-    expose:
-      - "8002"
     depends_on:
       rabbitmq:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.10"
+          memory: 64M
     networks:
       - detection
 
-  # Viewer Service - Web UI to browse captured images
-  # Access at: http://localhost:8085
   viewer_service:
     build:
       context: .
@@ -190,26 +173,53 @@ services:
       - ./captures:/app/captures:ro
     ports:
       - "8085:8080"
-    expose:
-      - "8003"
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.20"
+          memory: 128M
     networks:
       - detection
 
-  # Prometheus - Metrics collection and monitoring
-  # Access at: http://localhost:9090
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+  amd_gpu_exporter:
+    image: rocm/device-metrics-exporter:v1.4.2
+    container_name: amd_gpu_exporter
     ports:
-      - "9090:9090"
+      - "9835:5000"
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    security_opt:
+      - seccomp:unconfined
+    group_add:
+      - video
     restart: unless-stopped
     networks:
       - detection
 
-  # Node Exporter - System metrics for the host machine (from container)
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    environment:
+      - DOCKER_API_VERSION=1.45
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    command:
+      - '--docker_only=true'
+      - '--housekeeping_interval=10s'
+    restart: unless-stopped
+    networks:
+      - detection
+
   node_exporter:
     image: prom/node-exporter:latest
     container_name: node_exporter
@@ -226,8 +236,17 @@ services:
     networks:
       - detection
 
-  # Grafana - Visualization dashboard
-  # Access at: http://localhost:3000 (Default login: admin/admin)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    networks:
+      - detection
+
   grafana:
     image: grafana/grafana:latest
     container_name: grafana

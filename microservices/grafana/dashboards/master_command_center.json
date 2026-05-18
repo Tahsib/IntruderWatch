@@ -1,0 +1,139 @@
+{
+  "annotations": { "list": [ { "builtIn": 1, "datasource": { "type": "datasource", "uid": "grafana" }, "enable": true, "hide": true, "iconColor": "rgba(0, 211, 255, 1)", "name": "Annotations & Alerts", "type": "dashboard" } ] },
+  "editable": true, "id": null, "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 1, "panels": [], "title": "🚨 Security Pulse (Current Status)", "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } } },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 }, "id": 13,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [ { "expr": "sum(human_detector_humans_detected_total)", "refId": "A" } ],
+      "title": "Humans Detected", "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 50 }] } } },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 }, "id": 14,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [ { "expr": "rabbitmq_queue_messages{queue=\"frame_queue\"}", "refId": "A" } ],
+      "title": "Backlog", "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 }, "id": 15,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "center", "reduceOptions": { "calcs": ["mean"] } },
+      "targets": [ { "expr": "sum(rate(human_detector_frames_processed_total[1m]))", "refId": "A" } ],
+      "title": "Total FPS", "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": { "defaults": { "unit": "ms" } },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 }, "id": 16,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "center", "reduceOptions": { "calcs": ["mean"] } },
+      "targets": [ { "expr": "(sum(rate(human_detector_processing_seconds_sum[1m])) / sum(rate(human_detector_processing_seconds_count[1m]))) * 1000", "refId": "A" } ],
+      "title": "Inference Speed", "type": "stat"
+    },
+    {
+      "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "id": 2, "panels": [], "title": "📟 USE Method: Hardware Health (i7-12700K & RX 6800 XT)", "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "max": 100, "min": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 90 } ] }, "unit": "percent" }
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 6 }, "id": 3,
+      "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true },
+      "targets": [ { "expr": "100 - (avg by (instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)", "refId": "A" } ],
+      "title": "CPU Load", "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "max": 100, "min": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "#73BF69", "value": null }, { "color": "#3274D9", "value": 70 }, { "color": "#8E5DCF", "value": 90 } ] }, "unit": "percent" }
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 6 }, "id": 4,
+      "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true },
+      "targets": [ { "expr": "gpu_gfx_activity", "refId": "A" } ],
+      "title": "GPU AI Core", "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "max": 100, "min": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 80 }, { "color": "red", "value": 95 } ] }, "unit": "percent" }
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 6 }, "id": 5,
+      "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true },
+      "targets": [ { "expr": "((node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes) * 100", "refId": "A" } ],
+      "title": "RAM (32GB Total)", "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "max": 100, "min": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 80 }, { "color": "red", "value": 95 } ] }, "unit": "percent" }
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 6 }, "id": 6,
+      "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true },
+      "targets": [ { "expr": "(gpu_used_vram / gpu_total_vram) * 100", "refId": "A" } ],
+      "title": "VRAM (16GB Total)", "type": "gauge"
+    },
+    {
+      "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 12 },
+      "id": 10, "panels": [], "title": "📈 AI Pipeline & Service Analytics", "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": { "defaults": { "custom": { "fillOpacity": 15, "lineInterpolation": "smooth", "lineWidth": 2 }, "unit": "ms" } },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 13 }, "id": 11,
+      "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "right" }, "tooltip": { "mode": "multi" } },
+      "targets": [ { "expr": "(sum by (camera_id) (rate(human_detector_processing_seconds_sum[1m])) / sum by (camera_id) (rate(human_detector_processing_seconds_count[1m]))) * 1000", "legendFormat": "Cam {{camera_id}}", "refId": "A" } ],
+      "title": "Inference Latency per Camera", "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": { "defaults": { "custom": { "fillOpacity": 15, "lineInterpolation": "smooth", "lineWidth": 2 }, "unit": "reqps" } },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 13 }, "id": 12,
+      "options": { "legend": { "calcs": ["sum", "mean"], "displayMode": "table", "placement": "right" }, "tooltip": { "mode": "multi" } },
+      "targets": [ { "expr": "sum by (camera_id) (rate(human_detector_frames_processed_total[1m]))", "legendFormat": "Cam {{camera_id}}", "refId": "A" } ],
+      "title": "Throughput per Camera", "type": "timeseries"
+    },
+    {
+      "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
+      "id": 30, "panels": [], "title": "🐋 Microservices Micro-Management (Container Resources)", "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": { "defaults": { "unit": "decbytes" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 }, "id": 31,
+      "options": { "legend": { "displayMode": "table", "placement": "right" } },
+      "targets": [ { "expr": "container_memory_usage_bytes{container_label_com_docker_compose_service!=\"\", container_label_com_docker_compose_service!~\"prometheus|grafana|cadvisor|node_exporter|amd_gpu_exporter\"}", "legendFormat": "{{container_label_com_docker_compose_service}}", "refId": "A" } ],
+      "title": "Microservice RAM Usage", "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": { "defaults": { "unit": "percent" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 }, "id": 32,
+      "options": { "legend": { "displayMode": "table", "placement": "right" } },
+      "targets": [ { "expr": "rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service!=\"\", container_label_com_docker_compose_service!~\"prometheus|grafana|cadvisor|node_exporter|amd_gpu_exporter\"}[1m]) * 100", "legendFormat": "{{container_label_com_docker_compose_service}}", "refId": "A" } ],
+      "title": "Microservice CPU Load", "type": "timeseries"
+    },
+    {
+      "collapsed": true, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 },
+      "id": 40, "panels": [
+        {
+          "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 33 }, "id": 41,
+          "options": { "legend": { "displayMode": "table" } },
+          "targets": [ { "expr": "irate(node_cpu_seconds_total{mode=\"idle\"}[5m]) * 100", "legendFormat": "Core {{cpu}}", "refId": "A" } ],
+          "title": "Per-Core CPU Idle Time", "type": "timeseries"
+        }
+      ], "title": "🔍 Host Deep-Dive (Disk, Network, Per-Core)", "type": "row"
+    }
+  ],
+  "refresh": "5s", "schemaVersion": 38, "style": "dark", "title": "IntruderWatch | Master Command Center", "uid": "master-command-center", "version": 1
+}

@@ -11,6 +11,14 @@ scrape_configs:
     static_configs:
       - targets: ['node_exporter:9100']
 
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  - job_name: 'amd_gpu'
+    static_configs:
+      - targets: ['amd_gpu_exporter:5000']
+
   - job_name: 'human_detector'
     dns_sd_configs:
       - names:
@@ -44,5 +52,6 @@ scrape_configs:
       - targets: ['viewer_service:8003']
 
   - job_name: 'rabbitmq'
+    metrics_path: '/metrics/per-object'
     static_configs:
       - targets: ['rabbitmq:15692']
