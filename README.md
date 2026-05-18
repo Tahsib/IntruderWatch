@@ -9,16 +9,27 @@ IntruderWatch is an industry-grade
 
 ```mermaid
 graph TD
-    subgraph "Camera Network"
-        C1[Camera 1: 1080P]
-        C2[Camera 2: 1080N]
-        C3[Camera 3: 1080P]
-        CX[Other Cameras...]
+    subgraph "Camera & Ingestion Network"
+        subgraph "Cam 1 Pipeline"
+            C1[Camera 1: 1080P]
+            FC1[Capturer Container 1]
+        end
+        subgraph "Cam 2 Pipeline"
+            C2[Camera 2: 1080N]
+            FC2[Capturer Container 2]
+        end
+        subgraph "Cam 3 Pipeline"
+            C3[Camera 3: 1080P]
+            FC3[Capturer Container 3]
+        end
+        subgraph "Other Channels..."
+            CX[Camera X]
+            FCX[Capturer Container X]
+        end
     end
 
-    subgraph "Intel i7-12700K (Host)"
-        subgraph "Ingestion Pipeline (CPU)"
-            FC[Frame Capturer: FFmpeg]
+    subgraph "Intel i7-12700K (Host CPU)"
+        subgraph "Ingestion Stack (Deduplication & Encoding)"
             HASH[SHA-256 Deduplication]
             ENC[JPEG 85% Encoder]
         end
@@ -37,7 +48,7 @@ graph TD
 
     subgraph "AMD RX 6800 XT (GPU)"
         subgraph "AI Inference (ROCm)"
-            DET[Human Detector: YOLO11 Large]
+            DET[Human Detector Cluster: YOLO11 Large]
             IMG[1600px Super-Res Buffer]
         end
     end
@@ -50,8 +61,12 @@ graph TD
     end
 
     %% Traffic Flow
-    C1 & C2 & C3 & CX -- "RTSP Stream" --> FC
-    FC -- "Raw BGR" --> HASH
+    C1 -- "RTSP" --> FC1
+    C2 -- "RTSP" --> FC2
+    C3 -- "RTSP" --> FC3
+    CX -- "RTSP" --> FCX
+    
+    FC1 & FC2 & FC3 & FCX -- "Raw BGR" --> HASH
     HASH -- "Unique Frames" --> ENC
     ENC -- "Base64 JPEG" --> RMQ
     RMQ -- "Queue: frame_queue" --> DET
@@ -63,7 +78,7 @@ graph TD
     DISK -- "Static Serve" --> VIEW
     
     %% Monitoring Flow
-    FC & DET & ALRT & RMQ -- "Metrics" --> PROM
+    FC1 & FC2 & FC3 & FCX & DET & ALRT & RMQ -- "Metrics" --> PROM
     NODE & CADV -- "Hardware Metrics" --> PROM
     PROM -- "PromQL" --> GRAF
 ```
