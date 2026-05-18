@@ -1,6 +1,9 @@
 # IntruderWatch | Ultra-High Performance AI Security
 
-IntruderWatch is an industry-grade, real-time intruder detection system optimized for high-end hardware (**Intel i7-12700K & AMD RX 6800 XT**). It leverages **YOLO11 Large** for surgical detection precision and **AMD ROCm** for high-speed GPU acceleration.
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+
+IntruderWatch is an industry-grade
+, real-time intruder detection system optimized for high-end hardware (**Intel i7-12700K & AMD RX 6800 XT**). It leverages **YOLO11 Large** for surgical detection precision and **AMD ROCm** for high-speed GPU acceleration.
 
 ## 🏗️ System Architecture
 
