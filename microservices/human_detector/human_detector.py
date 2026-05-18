@@ -7,6 +7,9 @@ import hashlib
 import base64
 import json
 import socket
+import gc
+import threading
+import torch
 from datetime import datetime
 from ultralytics import YOLO
 from shared.rabbitmq_client import connect_rabbitmq
@@ -38,14 +41,31 @@ DETECTION_CONFIDENCE = float(os.getenv("DETECTION_CONFIDENCE", "0.8"))
 SAVE_QUALITY = int(os.getenv("SAVE_QUALITY", "85"))
 INFERENCE_SIZE = int(os.getenv("INFERENCE_SIZE", "1600"))
 
-# Shared state class to avoid nonlocal keyword issues
+# Shared state class
 class DetectionState:
     def __init__(self):
         self.frame_counter = 0
         self.start_time = time.time()
+        self.last_frame_time = time.time()
+
+def memory_manager(state):
+    """Background thread to release RAM/VRAM during idle periods."""
+    while True:
+        time.sleep(300) # Check every 5 minutes
+        idle_duration = time.time() - state.last_frame_time
+        if idle_duration > 300:
+            logging.info(f"AI idle for {int(idle_duration)}s. Parking memory...")
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            logging.info("Memory parked successfully.")
 
 def consume_frames(queue_name):
     state = DetectionState()
+    
+    # Start the memory manager thread
+    threading.Thread(target=memory_manager, args=(state,), daemon=True).start()
+
     # Load model once - Using YOLO11 LARGE on GPU for Absolute Maximum Accuracy
     model = YOLO("yolo11l.pt")
     connection, channel = connect_rabbitmq(["frame_queue", "alert_queue"])
@@ -57,6 +77,7 @@ def consume_frames(queue_name):
 
     def callback(ch, method, properties, body):
         camera_id = "unknown"
+        state.last_frame_time = time.time()
         try:
             payload = json.loads(body.decode('utf-8'))
             camera_id = payload.get("camera", "unknown")
