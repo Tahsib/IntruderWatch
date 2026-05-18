@@ -85,12 +85,13 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
                         ]
                         pipe = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=frame_size)
                         ffmpeg_running = True
-                        logger.info(f"Stream connection established. Capture started.")
+                        logger.info("Stream connection established. Capture started.")
                     
                     raw_frame = b""
                     while len(raw_frame) < frame_size:
                         chunk = pipe.stdout.read(frame_size - len(raw_frame))
-                        if not chunk: break
+                        if not chunk:
+                            break
                         raw_frame += chunk
                     
                     if len(raw_frame) != frame_size:
@@ -99,7 +100,8 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
                         try:
                             pipe.kill()
                             pipe.wait(timeout=1)
-                        except: pass
+                        except Exception:
+                            pass
                         pipe = None
                         ffmpeg_running = False
                         break
@@ -156,7 +158,8 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
                         try:
                             pipe.kill()
                             pipe.wait(timeout=1)
-                        except: pass
+                        except Exception:
+                            pass
                         pipe = None
                         ffmpeg_running = False
                         logger.info("Outside scheduled hours. Disconnected.")
@@ -169,10 +172,13 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
             logger.error(f"Capturer encountered an error: {e}")
             time.sleep(10)
         finally:
-            if pipe: pipe.terminate()
+            if pipe:
+                pipe.terminate()
             if mq_connection:
-                try: mq_connection.close()
-                except: pass
+                try:
+                    mq_connection.close()
+                except Exception:
+                    pass
 
 if __name__ == "__main__":
     try:

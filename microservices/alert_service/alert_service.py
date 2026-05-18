@@ -57,7 +57,7 @@ def alert_service(queue_name):
             data = json.loads(body.decode("utf-8"))
             camera_id = data.get("camera", "unknown")
             timestamp = data.get("timestamp", "unknown")
-        except:
+        except Exception:
             camera_id = "unknown"
             timestamp = "unknown"
 
