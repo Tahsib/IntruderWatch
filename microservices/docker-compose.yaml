@@ -164,6 +164,9 @@ services:
       - ./captures:/app/captures:ro
     ports:
       - "8085:8080"
+    environment:
+      VIEWER_USERNAME: ${VIEWER_USERNAME:-admin}
+      VIEWER_PASSWORD: ${VIEWER_PASSWORD:-password123}
     restart: unless-stopped
     deploy:
       resources:

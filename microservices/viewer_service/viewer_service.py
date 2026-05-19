@@ -1,10 +1,28 @@
-from pathlib import Path
-from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse
-from prometheus_client import start_http_server, Counter, Histogram
+import os
+import secrets
 import time
-
+from pathlib import Path
 from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request, Depends, HTTPException, status
+from fastapi.responses import FileResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from prometheus_client import start_http_server, Counter, Histogram
+
+# Auth Configuration
+security = HTTPBasic()
+VIEWER_USERNAME = os.getenv("VIEWER_USERNAME", "admin")
+VIEWER_PASSWORD = os.getenv("VIEWER_PASSWORD", "password123")
+
+def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
+    is_correct_username = secrets.compare_digest(credentials.username, VIEWER_USERNAME)
+    is_correct_password = secrets.compare_digest(credentials.password, VIEWER_PASSWORD)
+    if not (is_correct_username and is_correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -15,7 +33,7 @@ async def lifespan(app: FastAPI):
         pass
     yield
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, dependencies=[Depends(verify_credentials)])
 
 # Prometheus Metrics
 HTTP_REQUESTS_TOTAL = Counter('viewer_service_http_requests_total', 'Total HTTP requests', ['method', 'endpoint', 'status_code'])
