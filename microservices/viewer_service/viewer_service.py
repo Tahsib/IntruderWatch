@@ -4,7 +4,18 @@ from fastapi.responses import FileResponse
 from prometheus_client import start_http_server, Counter, Histogram
 import time
 
-app = FastAPI()
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Start Prometheus metrics server
+    try:
+        start_http_server(8003)
+    except Exception:
+        pass
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 # Prometheus Metrics
 HTTP_REQUESTS_TOTAL = Counter('viewer_service_http_requests_total', 'Total HTTP requests', ['method', 'endpoint', 'status_code'])
@@ -32,14 +43,6 @@ async def monitor_requests(request: Request, call_next):
     REQUEST_LATENCY.labels(endpoint=endpoint).observe(duration)
     
     return response
-
-@app.on_event("startup")
-async def startup_event():
-    # Start Prometheus metrics server
-    try:
-        start_http_server(8003)
-    except Exception:
-        pass
 
 CAPTURES_DIR = Path("/app/captures")
 
