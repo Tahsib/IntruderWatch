@@ -21,6 +21,11 @@ INSTANCE_ID = socket.gethostname()
 # Per-camera last hash to prevent re-processing
 last_saved_hashes = {}
 
+# Warm-up tracker: Stores how many frames we've seen per camera since startup
+# We skip the first 30 frames (~5s) to allow RTSP/ffmpeg to stabilize
+camera_warmup = {}
+WARMUP_LIMIT = 30
+
 # Configure logging
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
@@ -63,6 +68,21 @@ def memory_manager(state):
 def consume_frames(queue_name):
     state = DetectionState()
     
+    # Staggered initialization: Prevent multiple processes from hitting the GPU at once
+    # We use a deterministic delay based on the container hostname (INSTANCE_ID)
+    try:
+        instance_num = int(INSTANCE_ID.split('_')[-1])
+    except Exception:
+        try:
+            instance_num = int(INSTANCE_ID.split('-')[-1])
+        except Exception:
+            import random
+            instance_num = random.randint(1, 5)
+    
+    init_delay = (instance_num - 1) * 3
+    logging.info(f"Staggered start: Waiting {init_delay}s to initialize GPU...")
+    time.sleep(init_delay)
+
     # Start the memory manager thread
     threading.Thread(target=memory_manager, args=(state,), daemon=True).start()
 
@@ -82,6 +102,14 @@ def consume_frames(queue_name):
             payload = json.loads(body.decode('utf-8'))
             camera_id = payload.get("camera", "unknown")
             expected_hash = payload.get("hash", "")
+
+            # Warm-up Logic: Skip initial frames after restart to avoid macroblocking noise
+            current_count = camera_warmup.get(camera_id, 0)
+            if current_count < WARMUP_LIMIT:
+                camera_warmup[camera_id] = current_count + 1
+                logging.debug(f"Warming up Cam {camera_id}: skipping frame {camera_warmup[camera_id]}/{WARMUP_LIMIT}")
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+                return
 
             state.frame_counter += 1
             if state.frame_counter % 100 == 0:
@@ -117,7 +145,8 @@ def consume_frames(queue_name):
             with PROCESSING_TIME.labels(camera_id=camera_id, worker_id=INSTANCE_ID).time():
                 with ACTIVE_PROCESSING.labels(worker_id=INSTANCE_ID).track_inprogress():
                     # Optimized inference: INFERENCE_SIZE (1280) on GPU (device=0)
-                    results = model(frame, classes=[0], conf=DETECTION_CONFIDENCE, imgsz=INFERENCE_SIZE, device=0, verbose=False)[0]
+                    # Using half=True (FP16) to double speed and prevent GPU hangs
+                    results = model(frame, classes=[0], conf=DETECTION_CONFIDENCE, imgsz=INFERENCE_SIZE, device=0, verbose=False, half=True)[0]
                     
                     human_detected = False
                     for box in results.boxes:

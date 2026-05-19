@@ -22,7 +22,7 @@ The architecture is specifically tuned for high-end hardware, leveraging an **In
 
 **How it works:**
 - Spawns an `ffmpeg` subprocess that connects to the camera's RTSP stream.
-- ffmpeg outputs raw video frames (BGR24) at **3 fps** via a pipe, providing high-precision motion tracking.
+- ffmpeg outputs raw video frames (BGR24) at **6 fps** (configurable) via a pipe, providing high-precision motion tracking.
 - Each frame is encoded as high-quality **JPEG (85%)**, base64-encoded, and published to `frame_queue`.
 - Switched from PNG to JPEG to reduce bandwidth by **90%**, enabling real-time 1080P transmission.
 - Uses SHA-256 hashing for frame deduplication to ensure the AI only processes unique movement.
@@ -32,10 +32,11 @@ The architecture is specifically tuned for high-end hardware, leveraging an **In
 |---|---|---|
 | `STREAM_IP` | Camera DVR IP address | - |
 | `CHANNEL` | Camera channel number | - |
+| `FPS` | Target capture rate | 6 |
 | `FRAME_WIDTH` | Frame width in pixels | 1920 (1080P) |
 | `FRAME_HEIGHT` | Frame height in pixels | 1080 (1080P) |
 | `JPEG_QUALITY` | Compression quality | 85 |
-| `FRAME_SLEEP` | Seconds between frames | 0.3 (3 FPS) |
+| `FRAME_SLEEP` | Seconds between frames | 0.05 (Optimized for high-end CPU) |
 
 ---
 
@@ -46,15 +47,17 @@ The architecture is specifically tuned for high-end hardware, leveraging an **In
 **How it works:**
 - Loads the **YOLO11 Large** model (`yolo11l.pt`, ~100MB, pre-downloaded in Docker image).
 - Leveraging **AMD ROCm** for hardware acceleration on the **RX 6800 XT** GPU.
-- Processes frames at **1600px AI Vision** resolution, allowing for extreme precision and distance detection.
+- Processes frames at **1280px AI Vision** resolution using **FP16 (Half-Precision)** for maximum stability and speed.
+- Implements a **staggered initialization** (one-by-one startup) to prevent GPU memory contention.
 - If humans are detected:
   - Draws bounding boxes on the frame.
   - Saves the annotated frame as a JPEG to `/app/captures/camera_{id}/{date}/`.
   - Publishes a JSON alert to `alert_queue`.
 
 **Hardware Optimization:**
-- **Inference Size**: 1600px (Incredible detail, captures small/distant features).
-- **Replica Count**: 2 (GPU is fast enough to handle all 8 cameras with just 2 worker instances).
+- **Inference Size**: 1280px (Standardized high-fidelity input).
+- **Precision**: FP16 (Half-precision math, 2x faster, 50% less VRAM bandwidth).
+- **Replica Count**: 4 (Scaled to handle 48+ FPS in real-time).
 - **RAM**: 12GB allocated to handle high-res buffers.
 
 ---

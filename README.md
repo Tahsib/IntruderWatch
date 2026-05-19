@@ -88,7 +88,7 @@ graph TD
 - **AI Brain**: Upgraded to **YOLO11 Large (v11l)** for maximum accuracy and near-zero false positives.
 - **Hardware Accelerated**: Full **AMD GPU acceleration** via ROCm, enabling real-time 1600px inference.
 - **High-Fidelity Source**: Captures at **1080P (1920x1080)** and processes at **1600px** AI vision.
-- **Motion Precision**: **3 FPS** capture rate (3x higher than standard) for smooth movement tracking.
+- **Motion Precision**: **6 FPS** capture rate (configurable) for smooth movement tracking.
 - **Optimized Bandwidth**: Switched from large PNGs to high-quality **JPEG (85%)** for 90% faster transmission.
 - **Master Command Center**: Industry-standard **Grafana dashboard** with hardware USE metrics and service RED metrics.
 
@@ -97,7 +97,7 @@ graph TD
 ## 📂 Repository Structure
 
 **Microservices** (Current):
-- `microservices/frame_capturer/` - 1080P/3FPS RTSP capture via ffmpeg.
+- `microservices/frame_capturer/` - 1080P/6FPS RTSP capture via ffmpeg.
 - `microservices/human_detector/` - GPU-accelerated YOLO11L detection @ 1600px.
 - `microservices/alert_service/` - Async Twilio notification engine.
 - `microservices/viewer_service/` - FastAPI web UI for browsing high-res detections.

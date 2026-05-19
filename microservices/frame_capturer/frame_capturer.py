@@ -34,6 +34,7 @@ STREAM_CHANNEL = int(os.getenv("CHANNEL", "1"))
 STREAM_SUBTYPE = int(os.getenv("SUBTYPE", "0"))
 FRAME_HEIGHT = int(os.getenv("FRAME_HEIGHT", "360"))
 FRAME_WIDTH = int(os.getenv("FRAME_WIDTH", "640"))
+FPS = int(os.getenv("FPS", "3"))
 FRAME_SLEEP = float(os.getenv("FRAME_SLEEP", "0.3"))
 START_TIME_ENV = os.getenv("START_TIME", "00:00:00")
 END_TIME_ENV = os.getenv("END_TIME", "23:59:59")
@@ -51,9 +52,16 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
     start_time = datetime.strptime(START_TIME_ENV, "%H:%M:%S").time()
     end_time = datetime.strptime(END_TIME_ENV, "%H:%M:%S").time()
     
-    rtsp_url = f"rtsp://{username}:{password}@{ip}:554/cam/realmonitor?channel={channel}&subtype={stream}"
+    # Support for Custom RTSP URLs (e.g. Xiaomi, Tapo) or standard Dahua format
+    custom_url = os.getenv("CUSTOM_RTSP_URL")
+    if custom_url:
+        rtsp_url = custom_url
+        logger.info(f"Using Custom RTSP URL for channel {channel}")
+    else:
+        rtsp_url = f"rtsp://{username}:{password}@{ip}:554/cam/realmonitor?channel={channel}&subtype={stream}"
+    
     logger.info(f"Service initialized. Monitoring channel {channel} ({START_TIME_ENV} to {END_TIME_ENV})")
-    logger.info(f"Resolution: {FRAME_WIDTH}x{FRAME_HEIGHT}, Format: JPEG ({JPEG_QUALITY})")
+    logger.info(f"Resolution: {FRAME_WIDTH}x{FRAME_HEIGHT}, FPS: {FPS}, Format: JPEG ({JPEG_QUALITY})")
 
     last_sent_time = 0
     last_sent_hash = None
@@ -63,6 +71,10 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
     frames_skipped = 0
     app_start_time = time.time()
     last_log_time = 0
+    
+    # Calculate minimal interval between frames based on FPS
+    # We use a 10% buffer to avoid skipping frames due to tiny timing variations
+    min_interval = (1.0 / FPS) * 0.9
 
     while True:
         pipe = None
@@ -80,12 +92,12 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
                             "-rtsp_transport", "tcp", "-thread_queue_size", "1024",
                             "-probesize", "10M", "-analyzeduration", "10M",
                             "-i", rtsp_url,
-                            "-vf", f"fps=3,scale={FRAME_WIDTH}:{FRAME_HEIGHT}",
+                            "-vf", f"fps={FPS},scale={FRAME_WIDTH}:{FRAME_HEIGHT}",
                             "-f", "image2pipe", "-pix_fmt", "bgr24", "-vcodec", "rawvideo", "-"
                         ]
                         pipe = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=frame_size)
                         ffmpeg_running = True
-                        logger.info("Stream connection established. Capture started.")
+                        logger.info(f"Stream connection established. Capture started at {FPS} FPS.")
                     
                     raw_frame = b""
                     while len(raw_frame) < frame_size:
@@ -115,7 +127,7 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
                         logger.info(f"Heartbeat: {frames_sent}/{frames_captured} frames sent. Uptime: {int(elapsed)}s.")
 
                     now_ts = time.time()
-                    if now_ts - last_sent_time < 0.9: # Slight buffer below 1s
+                    if now_ts - last_sent_time < min_interval:
                         frames_skipped += 1
                         FRAMES_SKIPPED.labels(camera_id=channel, reason="rate_limit").inc()
                         continue
