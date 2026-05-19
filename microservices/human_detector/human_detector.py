@@ -72,10 +72,10 @@ def consume_frames(queue_name):
     # We use a deterministic delay based on the container hostname (INSTANCE_ID)
     try:
         instance_num = int(INSTANCE_ID.split('_')[-1])
-    except:
+    except Exception:
         try:
             instance_num = int(INSTANCE_ID.split('-')[-1])
-        except:
+        except Exception:
             import random
             instance_num = random.randint(1, 5)
     
