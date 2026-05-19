@@ -1,0 +1,57 @@
+version: 2
+updates:
+  # GitHub Actions updates
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Python dependencies (Microservices)
+  - package-ecosystem: "pip"
+    directory: "/microservices/alert_service"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "pip"
+    directory: "/microservices/frame_capturer"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "pip"
+    directory: "/microservices/human_detector"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "pip"
+    directory: "/microservices/viewer_service"
+    schedule:
+      interval: "weekly"
+
+  # Python dependencies (Monolith)
+  - package-ecosystem: "pip"
+    directory: "/monolith"
+    schedule:
+      interval: "weekly"
+
+  # Docker dependencies (images in Dockerfiles and docker-compose)
+  - package-ecosystem: "docker"
+    directory: "/microservices"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "/monolith"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "/microservices/alert_service"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "/microservices/frame_capturer"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "/microservices/human_detector"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "/microservices/viewer_service"
+    schedule:
+      interval: "weekly"
