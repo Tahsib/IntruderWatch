@@ -12,9 +12,10 @@ x-frame-capturer: &frame-capturer
     SUBTYPE: 0
     FRAME_WIDTH: 1920
     FRAME_HEIGHT: 1080
+    FPS: 6
     LOG_LEVEL: INFO
     JPEG_QUALITY: 85
-    FRAME_SLEEP: 0.3
+    FRAME_SLEEP: 0.05
   restart: unless-stopped
   expose:
     - "8001"
@@ -50,7 +51,7 @@ services:
     networks:
       - detection
 
-  # Camera Profiles
+  # Camera Profiles (All standardized to 1920x1080 for AI consistency)
   frame_capturer_1:
     <<: *frame-capturer
     container_name: frame_capturer_1
@@ -60,11 +61,7 @@ services:
   frame_capturer_2:
     <<: *frame-capturer
     container_name: frame_capturer_2
-    environment: 
-      <<: *frame-capturer-env
-      CHANNEL: 2
-      FRAME_WIDTH: 960
-      FRAME_HEIGHT: 1080
+    environment: { <<: *frame-capturer-env, CHANNEL: 2 }
     profiles: [cam2]
 
   frame_capturer_3:
@@ -88,31 +85,19 @@ services:
   frame_capturer_6:
     <<: *frame-capturer
     container_name: frame_capturer_6
-    environment: 
-      <<: *frame-capturer-env
-      CHANNEL: 6
-      FRAME_WIDTH: 960
-      FRAME_HEIGHT: 1080
+    environment: { <<: *frame-capturer-env, CHANNEL: 6 }
     profiles: [cam6]
 
   frame_capturer_7:
     <<: *frame-capturer
     container_name: frame_capturer_7
-    environment: 
-      <<: *frame-capturer-env
-      CHANNEL: 7
-      FRAME_WIDTH: 960
-      FRAME_HEIGHT: 576
+    environment: { <<: *frame-capturer-env, CHANNEL: 7 }
     profiles: [cam7]
 
   frame_capturer_8:
     <<: *frame-capturer
     container_name: frame_capturer_8
-    environment: 
-      <<: *frame-capturer-env
-      CHANNEL: 8
-      FRAME_WIDTH: 960
-      FRAME_HEIGHT: 576
+    environment: { <<: *frame-capturer-env, CHANNEL: 8 }
     profiles: [cam8]
 
   human_detector:
@@ -124,7 +109,8 @@ services:
       - .env
     environment:
       LOG_LEVEL: INFO
-      INFERENCE_SIZE: 1600
+      INFERENCE_SIZE: 1280
+      DETECTION_CONFIDENCE: 0.8
       HSA_OVERRIDE_GFX_VERSION: "10.3.0"
       PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
       TRITON_CACHE_DIR: "/tmp/triton"
@@ -142,7 +128,7 @@ services:
       rabbitmq:
         condition: service_healthy
     deploy:
-      replicas: 2
+      replicas: 4
       resources:
         limits:
           cpus: "4.0"
