@@ -78,7 +78,7 @@
           "max": 100, "min": 0,
           "thresholds": {
             "mode": "absolute",
-            "steps": [ { "color": "#73BF69", "value": null }, { "color": "#3274D9", "value": 70 }, { "color": "#8E5DCF", "value": 90 } ]
+            "steps": [ { "color": "green", "value": null }, { "color": "#EAB839", "value": 85 }, { "color": "red", "value": 97 } ]
           },
           "unit": "percent"
         }
