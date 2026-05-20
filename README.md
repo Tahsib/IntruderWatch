@@ -1,44 +1,38 @@
-# IntruderWatch | Ultra-High Performance AI Security
+# IntruderWatch | High-Performance Computer Vision Security
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-IntruderWatch is an industry-grade
-, real-time intruder detection system optimized for high-end hardware (**Intel i7-12700K & AMD RX 6800 XT**). It leverages **YOLO11 Large** for surgical detection precision and **AMD ROCm** for high-speed GPU acceleration.
+IntruderWatch is an industry-grade, real-time intruder detection system optimized for high-end hardware (**Intel i7-12700K & AMD RX 6800 XT**). It leverages **YOLO11 Large** for surgical detection precision and **AMD ROCm** for high-speed GPU-accelerated inference.
 
 ## 🏗️ System Architecture
 
 ```mermaid
 graph TD
-    subgraph "Camera & Ingestion Network"
+    subgraph "Ingestion Network"
         subgraph "Cam 1 Pipeline"
             C1[Camera 1: 1080P]
             FC1[Capturer Container 1]
         end
         subgraph "Cam 2 Pipeline"
-            C2[Camera 2: 1080N]
+            C2[Camera 2: 1080P]
             FC2[Capturer Container 2]
         end
-        subgraph "Cam 3 Pipeline"
-            C3[Camera 3: 1080P]
-            FC3[Capturer Container 3]
-        end
-        subgraph "Other Channels..."
-            CX[Camera X]
-            FCX[Capturer Container X]
+        subgraph "Scalability..."
+            CX[Other Channels...]
         end
     end
 
     subgraph "Intel i7-12700K (Host CPU)"
-        subgraph "Ingestion Stack (Deduplication & Encoding)"
-            HASH[SHA-256 Deduplication]
-            ENC[JPEG 85% Encoder]
+        subgraph "Processing Stack"
+            HASH[Temporal Deduplication]
+            ENC[JPEG Encoder]
         end
 
         subgraph "Message Broker (RAM)"
             RMQ[(RabbitMQ: 2GB tmpfs)]
         end
 
-        subgraph "Observability Stack"
+        subgraph "Observability Suite"
             PROM[Prometheus]
             GRAF[Grafana Master Dashboard]
             CADV[cAdvisor]
@@ -47,48 +41,46 @@ graph TD
     end
 
     subgraph "AMD RX 6800 XT (GPU)"
-        subgraph "AI Inference (ROCm)"
-            DET[Human Detector Cluster: YOLO11 Large]
-            IMG[1600px Super-Res Buffer]
+        subgraph "Detection Inference (ROCm)"
+            DET[Detector Cluster: YOLO11 Large]
+            BUF[High-Res Inference Buffer]
         end
     end
 
-    subgraph "Detections & Alerts"
+    subgraph "Notifications & Storage"
         ALRT[Alert Service]
         VIEW[FastAPI Viewer]
-        TWLO[Twilio API]
+        NOTI[ntfy / Twilio]
         DISK[(SSD Captures)]
     end
 
     %% Traffic Flow
     C1 -- "RTSP" --> FC1
     C2 -- "RTSP" --> FC2
-    C3 -- "RTSP" --> FC3
-    CX -- "RTSP" --> FCX
     
-    FC1 & FC2 & FC3 & FCX -- "Raw BGR" --> HASH
+    FC1 & FC2 -- "Raw BGR" --> HASH
     HASH -- "Unique Frames" --> ENC
     ENC -- "Base64 JPEG" --> RMQ
     RMQ -- "Queue: frame_queue" --> DET
-    DET -- "ROCm / VRAM" --> IMG
-    IMG -- "Human? = YES" --> RMQ
+    DET -- "ROCm Acceleration" --> BUF
+    BUF -- "Human? = YES" --> RMQ
     RMQ -- "Queue: alert_queue" --> ALRT
-    IMG -- "Save Frame" --> DISK
-    ALRT -- "Async Call" --> TWLO
-    DISK -- "Static Serve" --> VIEW
+    BUF -- "Persist Frame" --> DISK
+    ALRT -- "Async Notify" --> NOTI
+    DISK -- "Secure Serve" --> VIEW
     
     %% Monitoring Flow
-    FC1 & FC2 & FC3 & FCX & DET & ALRT & RMQ -- "Metrics" --> PROM
-    NODE & CADV -- "Hardware Metrics" --> PROM
+    FC1 & FC2 & DET & ALRT & RMQ -- "RED Metrics" --> PROM
+    NODE & CADV -- "USE Metrics" --> PROM
     PROM -- "PromQL" --> GRAF
 ```
 
 ## 🚀 Key Features (Ultra Quality Mode)
 
-- **AI Brain**: Upgraded to **YOLO11 Large (v11l)** for maximum accuracy and near-zero false positives.
-- **Hardware Accelerated**: Full **AMD GPU acceleration** via ROCm, enabling real-time 1600px inference.
-- **High-Fidelity Source**: Captures at **1080P (1920x1080)** and processes at **1600px** AI vision.
-- **Motion Precision**: **6 FPS** capture rate (configurable) for smooth movement tracking.
+- **Core Inference Engine**: Upgraded to **YOLO11 Large (v11l)** for maximum accuracy and near-zero false positives.
+- **Hardware Accelerated**: Full **AMD GPU acceleration** via ROCm, enabling real-time high-resolution inference.
+- **High-Fidelity Source**: Captures at **1080P (1920x1080)** and processes at **1280px** inference resolution.
+- **Temporal Precision**: **6 FPS** capture rate (configurable) for high-precision motion tracking.
 - **Optimized Bandwidth**: Switched from large PNGs to high-quality **JPEG (85%)** for 90% faster transmission.
 - **Master Command Center**: Industry-standard **Grafana dashboard** with hardware USE metrics and service RED metrics.
 
@@ -98,9 +90,9 @@ graph TD
 
 **Microservices** (Current):
 - `microservices/frame_capturer/` - 1080P/6FPS RTSP capture via ffmpeg.
-- `microservices/human_detector/` - GPU-accelerated YOLO11L detection @ 1600px.
-- `microservices/alert_service/` - Async Twilio notification engine.
-- `microservices/viewer_service/` - FastAPI web UI for browsing high-res detections.
+- `microservices/human_detector/` - GPU-accelerated YOLO11L detection.
+- `microservices/alert_service/` - Multi-channel (Twilio + ntfy) notification engine.
+- `microservices/viewer_service/` - FastAPI web UI for secure detection browsing.
 - `microservices/grafana/` & `prometheus/` - 'Master Command Center' observability suite.
 
 **Legacy**:
@@ -112,9 +104,9 @@ graph TD
 
 The system includes a professional-grade monitoring stack accessible at **http://localhost:3000** (admin/admin).
 
-- **Hardware USE**: Real-time Host CPU load, GPU % (AI Core), RAM %, and VRAM usage.
-- **AI Analytics**: Per-camera Inference Latency (ms), Throughput (FPS), and Security Stats.
-- **Micro-Management**: Per-service RAM/CPU consumption for all security containers.
+- **Hardware Performance**: Real-time Host CPU load, GPU Core Activity, RAM Utilization, and VRAM pressure.
+- **Detection Analytics**: Per-camera Inference Latency (ms), Throughput (FPS), and Detection Statistics.
+- **Operational Health**: Per-service RAM/CPU consumption for all production containers.
 
 ---
 
@@ -128,11 +120,11 @@ The current deployment is tuned for:
 
 ### Environment Variables (.env)
 - `STREAM_IP`, `STREAM_USERNAME`, `STREAM_PASSWORD` - Camera credentials.
-- `INFERENCE_SIZE` - AI Vision resolution (Default: **1600**).
-- `DETECTION_CONFIDENCE` - AI threshold (Default: **0.8**).
+- `INFERENCE_SIZE` - Detection resolution (Default: **1280**).
+- `DETECTION_CONFIDENCE` - Confidence threshold (Default: **0.8**).
 - `FRAME_WIDTH`, `FRAME_HEIGHT` - Capture resolution (Default: **1920x1080**).
 - `JPEG_QUALITY` - Image compression (Default: **85**).
-- `ALERT_COOLDOWN` - Cooldown between notifications (Default: **90s**).
+- `ALERT_COOLDOWN` - Suppression window between notifications (Default: **90s**).
 
 ---
 
@@ -143,7 +135,7 @@ The current deployment is tuned for:
    ```bash
    cd microservices
    cp .env.example .env
-   # Edit .env with your camera and Twilio details
+   # Edit .env with your camera and Twilio/ntfy details
    ```
 3. **Launch**:
    ```bash
@@ -158,8 +150,8 @@ The current deployment is tuned for:
 ## 💎 Optimization Highlights
 
 - **Multi-Stage Builds**: Docker images are built in stages to ensure the final runtime is lean and secure.
-- **Non-Root Execution**: All services run as a dedicated `appuser` for improved security.
-- **Aggressive Caching**: Model weights (`yolo11l.pt`) are pre-downloaded during build to ensure instant startups.
-- **Resource Caps**: Precise CPU/RAM limits ensure the system stays stable without starving the host OS.
+- **Non-Root Execution**: All services run as a dedicated `appuser` for improved security posture.
+- **Aggressive Caching**: Model weights (`yolo11l.pt`) are pre-downloaded during build to ensure instant deployment.
+- **Resource Caps**: Precise CPU/RAM limits ensure the system stays stable without starving host resources.
 
 ---

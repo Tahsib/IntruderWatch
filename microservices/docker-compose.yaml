@@ -51,7 +51,7 @@ services:
     networks:
       - detection
 
-  # Camera Profiles (All standardized to 1920x1080 for AI consistency)
+  # Camera Profiles (All standardized to 1920x1080 for inference consistency)
   frame_capturer_1:
     <<: *frame-capturer
     container_name: frame_capturer_1
