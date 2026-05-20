@@ -1,3 +1,4 @@
 pika
 twilio
+requests
 prometheus-client

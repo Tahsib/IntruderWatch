@@ -143,6 +143,12 @@ services:
     container_name: alert_service
     env_file:
       - .env
+    environment:
+      NTFY_BASE_URL: ${NTFY_BASE_URL:-http://localhost:8081}
+      VIEWER_BASE_URL: ${VIEWER_BASE_URL:-http://localhost:8085}
+      ALERT_BYPASS_TOKEN: ${ALERT_BYPASS_TOKEN}
+    volumes:
+      - ./captures:/app/captures:ro
     restart: unless-stopped
     depends_on:
       rabbitmq:
@@ -155,11 +161,32 @@ services:
     networks:
       - detection
 
+  ntfy:
+    image: binwiederhier/ntfy:latest
+    container_name: ntfy
+    command:
+      - serve
+    environment:
+      - NTFY_BASE_URL=${NTFY_BASE_URL:-http://localhost:8081}
+      - NTFY_ATTACHMENT_CACHE_DIR=/var/cache/ntfy/attachments
+      - NTFY_ATTACHMENT_TOTAL_SIZE_LIMIT=1G
+      - NTFY_ATTACHMENT_FILE_SIZE_LIMIT=10M
+      - NTFY_ATTACHMENT_EXPIRY_DURATION=24h
+    volumes:
+      - ntfy-data:/var/cache/ntfy
+    ports:
+      - "8081:80"
+    restart: unless-stopped
+    networks:
+      - detection
+
   viewer_service:
     build:
       context: .
       dockerfile: viewer_service/Dockerfile
     container_name: viewer_service
+    env_file:
+      - .env
     volumes:
       - ./captures:/app/captures:ro
     ports:
@@ -167,6 +194,7 @@ services:
     environment:
       VIEWER_USERNAME: ${VIEWER_USERNAME:-admin}
       VIEWER_PASSWORD: ${VIEWER_PASSWORD:-password123}
+      ALERT_BYPASS_TOKEN: ${ALERT_BYPASS_TOKEN}
     restart: unless-stopped
     deploy:
       resources:
@@ -202,7 +230,6 @@ services:
       - /var/run:/var/run:ro
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     privileged: true
     devices:
@@ -296,3 +323,4 @@ volumes:
   loki-data:
   prometheus-data:
   grafana-data:
+  ntfy-data:

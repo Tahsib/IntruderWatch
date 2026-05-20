@@ -12,6 +12,7 @@ from prometheus_client import start_http_server, Counter, Histogram
 security = HTTPBasic()
 VIEWER_USERNAME = os.getenv("VIEWER_USERNAME", "admin")
 VIEWER_PASSWORD = os.getenv("VIEWER_PASSWORD", "password123")
+ALERT_BYPASS_TOKEN = os.getenv("ALERT_BYPASS_TOKEN")
 
 def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
     is_correct_username = secrets.compare_digest(credentials.username, VIEWER_USERNAME)
@@ -33,7 +34,7 @@ async def lifespan(app: FastAPI):
         pass
     yield
 
-app = FastAPI(lifespan=lifespan, dependencies=[Depends(verify_credentials)])
+app = FastAPI(lifespan=lifespan)
 
 # Prometheus Metrics
 HTTP_REQUESTS_TOTAL = Counter('viewer_service_http_requests_total', 'Total HTTP requests', ['method', 'endpoint', 'status_code'])
@@ -65,13 +66,13 @@ async def monitor_requests(request: Request, call_next):
 CAPTURES_DIR = Path("/app/captures")
 
 
-@app.get("/")
+@app.get("/", dependencies=[Depends(verify_credentials)])
 async def serve_root():
     """Serve the main HTML page."""
     return FileResponse("index.html", media_type="text/html")
 
 
-@app.get("/api/cameras")
+@app.get("/api/cameras", dependencies=[Depends(verify_credentials)])
 async def get_cameras():
     """List all camera folders sorted."""
     if not CAPTURES_DIR.exists():
@@ -84,7 +85,7 @@ async def get_cameras():
     return cameras
 
 
-@app.get("/api/cameras/{camera}/dates")
+@app.get("/api/cameras/{camera}/dates", dependencies=[Depends(verify_credentials)])
 async def get_dates(camera: str):
     """List date folders for a camera, sorted descending (newest first)."""
     camera_path = CAPTURES_DIR / camera
@@ -100,7 +101,7 @@ async def get_dates(camera: str):
     return dates
 
 
-@app.get("/api/cameras/{camera}/dates/{date}/images")
+@app.get("/api/cameras/{camera}/dates/{date}/images", dependencies=[Depends(verify_credentials)])
 async def get_images(camera: str, date: str):
     """List image filenames for a camera/date."""
     date_path = CAPTURES_DIR / camera / date
@@ -121,15 +122,40 @@ async def get_images(camera: str, date: str):
 
 
 @app.get("/images/{camera}/{date}/{filename}")
-async def serve_image(camera: str, date: str, filename: str):
-    """Serve image file."""
+async def serve_image(camera: str, date: str, filename: str, token: str = None, request: Request = None):
+    """Serve image file. Supports Basic Auth OR a valid Alert Bypass Token."""
+    
+    # 1. Check for valid Bypass Token
+    authenticated = False
+    if ALERT_BYPASS_TOKEN and token == ALERT_BYPASS_TOKEN:
+        authenticated = True
+    
+    # 2. Fallback to Basic Auth if no token
+    if not authenticated:
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required",
+                headers={"WWW-Authenticate": "Basic"},
+            )
+        # Manually trigger HTTPBasic logic for this specific route
+        try:
+            # security(request) parses the header and handles basic validation
+            credentials = await security(request)
+            verify_credentials(credentials)
+            authenticated = True
+        except Exception as e:
+            raise e
+
+    # 3. Path Security & File Serving
     image_path = CAPTURES_DIR / camera / date / filename
 
     # Security: prevent directory traversal
     if not image_path.exists() or not image_path.is_file():
         return FileResponse("", status_code=404)
 
-    if not str(image_path).startswith(str(CAPTURES_DIR)):
+    if not str(image_path.resolve()).startswith(str(CAPTURES_DIR.resolve())):
         return FileResponse("", status_code=403)
 
     IMAGES_SERVED_TOTAL.inc()

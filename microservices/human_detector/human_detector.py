@@ -161,10 +161,6 @@ def consume_frames(queue_name):
                         timestamp_dt = datetime.now()
                         timestamp = timestamp_dt.strftime("%Y-%m-%d %H:%M:%S.%f")
                         
-                        alert_payload = json.dumps({"camera": camera_id, "timestamp": timestamp})
-                        channel.basic_publish(exchange="", routing_key="alert_queue", body=alert_payload)
-                        HUMANS_DETECTED.labels(camera_id=camera_id, worker_id=INSTANCE_ID).inc()
-
                         date_only = timestamp.split()[0]
                         detection_dir = os.path.join(f"/app/captures/camera_{camera_id}", date_only)
                         os.makedirs(detection_dir, exist_ok=True)
@@ -172,6 +168,12 @@ def consume_frames(queue_name):
                         # Save as JPEG (faster and smaller than PNG)
                         filename = f"{detection_dir}/det_{timestamp}_{expected_hash[:8]}_{INSTANCE_ID[:6]}.jpg"
                         success = cv2.imwrite(filename, frame, [cv2.IMWRITE_JPEG_QUALITY, SAVE_QUALITY])
+                        
+                        # Add filename to payload for the alert service
+                        alert_payload = json.dumps({"camera": camera_id, "timestamp": timestamp, "filename": filename})
+                        channel.basic_publish(exchange="", routing_key="alert_queue", body=alert_payload)
+                        HUMANS_DETECTED.labels(camera_id=camera_id, worker_id=INSTANCE_ID).inc()
+
                         if success:
                             logging.info(f"*** HUMAN DETECTED (Cam {camera_id}) *** Saved to {filename}")
                         else:
