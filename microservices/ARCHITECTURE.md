@@ -2,112 +2,110 @@
 
 ## Overview
 
-IntruderWatch is a high-performance intruder detection system built as a set of microservices connected via RabbitMQ. It captures high-fidelity frames from RTSP security cameras, runs surgical human detection using GPU-accelerated **YOLO11 Large**, alerts via Twilio, and provides a web-based image viewer for browsing detections.
+IntruderWatch is a high-performance intruder detection system designed as a distributed set of microservices orchestrated via RabbitMQ. It captures high-fidelity frames from RTSP security cameras, performs surgical human detection using GPU-accelerated **YOLO11 Large**, dispatches multi-channel alerts (Twilio + ntfy), and provides a secure web-based interface for visual audit.
 
-The architecture is specifically tuned for high-end hardware, leveraging an **Intel i7-12700K** for ingestion and an **AMD RX 6800 XT** (via ROCm) for AI inference.
+The architecture is engineered for high-end hardware, leveraging an **Intel i7-12700K** for ingestion and an **AMD RX 6800 XT** (via ROCm) for real-time detection inference.
 
 ```
-[RTSP Cameras] --> [Frame Capturers (i7 CPU)] --> [RabbitMQ (In-Memory)] --> [Human Detectors (AMD GPU)] --> [RabbitMQ] --> [Alert Service] --> [Twilio]
+[RTSP Source] --> [Ingestion Pipeline (i7 CPU)] --> [Message Broker (RabbitMQ)] --> [Inference Engine (AMD GPU)] --> [Notification Engine] --> [Twilio/ntfy]
                                                                                                                       |
-                                                                                                    [Captures] <-- [Viewer Service] (Web UI)
+                                                                                                    [Persistent Captures] <-- [Secure Viewer Service]
 ```
 
 ---
 
-## Services
+## Service Catalog
 
-### 1. Frame Capturer (`frame_capturer/`)
+### 1. Ingestion Engine (`frame_capturer/`)
 
-**Purpose:** Connects to RTSP camera streams and publishes frames to RabbitMQ at high resolution.
+**Purpose:** Establishes high-resolution camera links and standardizes frame data for downstream processing.
 
-**How it works:**
-- Spawns an `ffmpeg` subprocess that connects to the camera's RTSP stream.
-- ffmpeg outputs raw video frames (BGR24) at **6 fps** (configurable) via a pipe, providing high-precision motion tracking.
-- Each frame is encoded as high-quality **JPEG (85%)**, base64-encoded, and published to `frame_queue`.
-- Switched from PNG to JPEG to reduce bandwidth by **90%**, enabling real-time 1080P transmission.
-- Uses SHA-256 hashing for frame deduplication to ensure the AI only processes unique movement.
+**Mechanism:**
+- Utilizes `ffmpeg` to interface with RTSP streams.
+- Extracts raw BGR24 frames at **6 FPS** (configurable), ensuring high temporal resolution for motion tracking.
+- Performs **Temporal Deduplication** via SHA-256 hashing to eliminate redundant processing of static frames.
+- Encodes standardized frames as high-quality **JPEG (85%)**, significantly reducing broker bandwidth while maintaining evidence-grade detail.
 
-**Key config (environment variables):**
+**Primary Configuration:**
 | Variable | Description | Default |
 |---|---|---|
-| `STREAM_IP` | Camera DVR IP address | - |
-| `CHANNEL` | Camera channel number | - |
-| `FPS` | Target capture rate | 6 |
-| `FRAME_WIDTH` | Frame width in pixels | 1920 (1080P) |
-| `FRAME_HEIGHT` | Frame height in pixels | 1080 (1080P) |
-| `JPEG_QUALITY` | Compression quality | 85 |
-| `FRAME_SLEEP` | Seconds between frames | 0.05 (Optimized for high-end CPU) |
+| `STREAM_IP` | Camera/NVR Network Address | - |
+| `CHANNEL` | Stream Channel Identifier | - |
+| `FPS` | Targeted Frame Rate | 6 |
+| `FRAME_WIDTH` | Capture Resolution (Width) | 1920 (1080P) |
+| `FRAME_HEIGHT` | Capture Resolution (Height) | 1080 (1080P) |
+| `JPEG_QUALITY` | Encoder Quality Profile | 85 |
 
 ---
 
-### 2. Human Detector (`human_detector/`)
+### 2. Core Inference Engine (`human_detector/`)
 
-**Purpose:** Consumes frames from RabbitMQ, runs GPU-accelerated human detection, and publishes alerts.
+**Purpose:** Executes deep learning-based object detection on high-resolution frame buffers.
 
-**How it works:**
-- Loads the **YOLO11 Large** model (`yolo11l.pt`, ~100MB, pre-downloaded in Docker image).
-- Leveraging **AMD ROCm** for hardware acceleration on the **RX 6800 XT** GPU.
-- Processes frames at **1280px AI Vision** resolution using **FP16 (Half-Precision)** for maximum stability and speed.
-- Implements a **staggered initialization** (one-by-one startup) to prevent GPU memory contention.
-- If humans are detected:
-  - Draws bounding boxes on the frame.
-  - Saves the annotated frame as a JPEG to `/app/captures/camera_{id}/{date}/`.
-  - Publishes a JSON alert to `alert_queue`.
+**Mechanism:**
+- Deploys the **YOLO11 Large** model, optimized for maximum detection accuracy.
+- Leverages **AMD ROCm** hardware acceleration on the RX 6800 XT.
+- Employs **FP16 (Half-Precision)** math to double inference throughput and reduce VRAM bandwidth pressure.
+- Implements **Serialized GPU Warm-up** to ensure driver stability during multi-replica initialization.
+- **Decision Logic:**
+  - Performs spatial detection for human classes.
+  - Persists annotated evidence frames to secure storage.
+  - Publishes detection events to the notification exchange.
 
-**Hardware Optimization:**
-- **Inference Size**: 1280px (Standardized high-fidelity input).
-- **Precision**: FP16 (Half-precision math, 2x faster, 50% less VRAM bandwidth).
-- **Replica Count**: 4 (Scaled to handle 48+ FPS in real-time).
-- **RAM**: 12GB allocated to handle high-res buffers.
-
----
-
-### 3. Alert Service (`alert_service/`)
-
-**Purpose:** Consumes alerts from RabbitMQ and places phone calls via Twilio when humans are detected.
-
-**How it works:**
-- Consumes messages from `alert_queue`.
-- Triggers async phone calls to all configured numbers.
-- Implements a **90s global cooldown** to prevent redundant notifications during a single incident.
+**Hardware Specifications:**
+- **Inference Resolution**: 1280px (Standardized high-fidelity input).
+- **Math Precision**: FP16 (Half-precision).
+- **Concurrency**: 4 Replicas (Optimized for 48+ aggregate FPS).
+- **Memory Profile**: 12GB RAM per cluster.
 
 ---
 
-### 4. Viewer Service (`viewer_service/`)
+### 3. Notification Engine (`alert_service/`)
 
-**Purpose:** Web-based UI for browsing captured detection images organized by camera and date.
+**Purpose:** Manages asynchronous delivery of security alerts across multiple urgent and visual channels.
 
-**How it works:**
-- FastAPI backend serving high-res JPEG captures.
-- organized by `camera` -> `date` -> `time`.
+**Mechanism:**
+- Consumes events from the centralized RabbitMQ alert exchange.
+- **Redundant Dispatch:**
+  - **Urgent:** Triggers async phone calls via Twilio API.
+  - **Visual:** Delivers high-res detection images via self-hosted **ntfy** topics.
+- **Suppression Logic:** Enforces a **90s global cooldown** to prevent notification fatigue during ongoing incidents.
 
 ---
 
-### 5. Observability Stack (Master Command Center)
+### 4. Secure Viewer Service (`viewer_service/`)
 
-**Purpose:** Provides industry-standard "nitty-gritty" visibility into hardware and services.
+**Purpose:** Provides a centralized, authenticated interface for historical evidence review.
+
+**Mechanism:**
+- FastAPI-based web application with high-performance static serving.
+- Implements a **Dual-Layer Authentication** model:
+  - **Dashboard:** HTTP Basic Auth.
+  - **Instant Alerts:** Secure Bypass Tokens for seamless mobile image preview.
+
+---
+
+### 5. Observability Suite (Master Command Center)
+
+**Purpose:** Delivers real-time operational visibility into system performance and hardware health.
 
 **Components:**
-- **Prometheus**: Scrapes metrics from every service and hardware exporter.
-- **AMD GPU Exporter**: Real-time tracking of RX 6800 XT AI Core activity and VRAM.
-- **cAdvisor**: Per-container CPU/RAM monitoring for all microservices.
-- **Node Exporter**: Host-level tracking for the i7-12700K.
-- **Grafana**: Visualizes everything in the **Master Command Center** dashboard.
+- **Prometheus**: Aggregates RED (Rate, Errors, Duration) metrics from all services.
+- **AMD GPU Exporter**: Monitors RX 6800 XT Core frequency, temperature, and VRAM utilization.
+- **cAdvisor**: Provides granular container-level resource consumption data.
+- **Node Exporter**: Tracks host-level hardware telemetry.
+- **Grafana**: Orchestrates data into the **Master Command Center** dashboard.
 
-**Key Metrics:**
-- **AI Latency**: Milliseconds taken per detection per camera.
-- **System FPS**: Total frames processed per second across the cluster.
-- **Hardware USE**: Utilization, Saturation, and Errors for CPU, GPU, and RAM.
+**Key Performance Indicators (KPIs):**
+- **Inference Latency**: Milliseconds per detection cycle.
+- **Ingestion Throughput**: Aggregate FPS across the camera network.
+- **Hardware Saturation**: USE (Utilization, Saturation, Errors) metrics for CPU, GPU, and RAM.
 
 ---
 
-## Deployment Strategy
+## Operational Excellence
 
-### Image Build
-- **Multi-Stage Builds**: All Dockerfiles use a `builder` stage to isolate dependencies, resulting in lean production images.
-- **Non-Root**: All services run as a dedicated `appuser` for security.
-
-### Hardware Allocation (32GB / i7-12700K / 6800XT)
-- **Detector**: 12GB RAM / 4 CPUs / Direct GPU Access.
-- **Capturers**: 512MB RAM / 1 CPU per camera.
-- **RabbitMQ**: 2GB tmpfs (In-memory buffer for high-throughput 1080P data).
+### Production Integrity
+- **Stateless Scaling**: Detectors can be scaled horizontally without data loss.
+- **Persistence Layer**: Dedicated Docker volumes for logs, metrics, and captures ensure data integrity across reboots.
+- **Security Posture**: Non-root execution environments and isolated internal networks.
