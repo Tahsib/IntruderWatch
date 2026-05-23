@@ -32,15 +32,18 @@ STREAM_USERNAME = os.getenv("STREAM_USERNAME")
 STREAM_PASSWORD = os.getenv("STREAM_PASSWORD")
 STREAM_CHANNEL = int(os.getenv("CHANNEL", "1"))
 STREAM_SUBTYPE = int(os.getenv("SUBTYPE", "0"))
-FRAME_HEIGHT = int(os.getenv("FRAME_HEIGHT", "360"))
-FRAME_WIDTH = int(os.getenv("FRAME_WIDTH", "640"))
-FPS = int(os.getenv("FPS", "3"))
-FRAME_SLEEP = float(os.getenv("FRAME_SLEEP", "0.3"))
+FRAME_HEIGHT = int(os.getenv("FRAME_HEIGHT", "1080"))
+FRAME_WIDTH = int(os.getenv("FRAME_WIDTH", "1920"))
+FPS = int(os.getenv("FPS", "4"))
+FRAME_SLEEP = float(os.getenv("FRAME_SLEEP", "0.05"))
 START_TIME_ENV = os.getenv("START_TIME", "00:00:00")
 END_TIME_ENV = os.getenv("END_TIME", "23:59:59")
-JPEG_QUALITY = int(os.getenv("JPEG_QUALITY", "90"))
+JPEG_QUALITY = int(os.getenv("JPEG_QUALITY", "85"))
+# MSE threshold for "motion" vs "noise". 5.0 is typically safe for noisy nights.
+MOTION_THRESHOLD = float(os.getenv("MOTION_THRESHOLD", "5.0"))
 
 def is_within_time_frame(start_time, end_time):
+    """Checks if current time is within the configured monitoring window."""
     now = datetime.now().time()
     if start_time <= end_time:
         return start_time <= now <= end_time
@@ -52,7 +55,7 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
     start_time = datetime.strptime(START_TIME_ENV, "%H:%M:%S").time()
     end_time = datetime.strptime(END_TIME_ENV, "%H:%M:%S").time()
     
-    # Support for Custom RTSP URLs (e.g. Xiaomi, Tapo) or standard Dahua format
+    # Support for Custom RTSP URLs
     custom_url = os.getenv("CUSTOM_RTSP_URL")
     if custom_url:
         rtsp_url = custom_url
@@ -64,7 +67,7 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
     logger.info(f"Resolution: {FRAME_WIDTH}x{FRAME_HEIGHT}, FPS: {FPS}, Format: JPEG ({JPEG_QUALITY})")
 
     last_sent_time = 0
-    last_sent_hash = None
+    last_frame_gray = None
     frames_captured = 0
     frames_sent = 0
     frames_duplicate = 0
@@ -73,7 +76,6 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
     last_log_time = 0
     
     # Calculate minimal interval between frames based on FPS
-    # We use a 10% buffer to avoid skipping frames due to tiny timing variations
     min_interval = (1.0 / FPS) * 0.9
 
     while True:
@@ -85,6 +87,7 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
             mq_connection, mq_channel = connect_rabbitmq(queue_name)
             
             while True:
+                # --- SCHEDULING CHECK ---
                 if is_within_time_frame(start_time, end_time):
                     if not ffmpeg_running:
                         ffmpeg_cmd = [
@@ -121,7 +124,6 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
                     frames_captured += 1
                     FRAMES_CAPTURED.labels(camera_id=channel).inc()
                     
-                    # Log heartbeat every 100 frames
                     if frames_captured % 100 == 0:
                         elapsed = time.time() - app_start_time
                         logger.info(f"Heartbeat: {frames_sent}/{frames_captured} frames sent. Uptime: {int(elapsed)}s.")
@@ -134,17 +136,30 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
 
                     frame = np.frombuffer(raw_frame, dtype=np.uint8).reshape((FRAME_HEIGHT, FRAME_WIDTH, 3))
                     
-                    # Encode as JPEG for smaller payload
-                    success, img_encode = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])
-                    if success:
-                        byte_data = img_encode.tobytes()
-                        img_hash = hashlib.sha256(byte_data).hexdigest()
+                    # --- MOTION FILTERING (THERMAL OPTIMIZATION) ---
+                    # Ignore pixel-level noise (night grain) to save GPU energy
+                    frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                    if last_frame_gray is not None:
+                        # Resize for extremely fast CPU comparison
+                        small_current = cv2.resize(frame_gray, (160, 90))
+                        small_last = cv2.resize(last_frame_gray, (160, 90))
                         
-                        if img_hash == last_sent_hash:
+                        # Mean Squared Error: determines if anything ACTUALLY moved
+                        mse = np.mean((small_current.astype("float") - small_last.astype("float")) ** 2)
+                        
+                        if mse < MOTION_THRESHOLD:
                             frames_duplicate += 1
                             FRAMES_SKIPPED.labels(camera_id=channel, reason="duplicate").inc()
                             last_sent_time = now_ts
                             continue
+
+                    last_frame_gray = frame_gray
+
+                    # Encode as JPEG
+                    success, img_encode = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])
+                    if success:
+                        byte_data = img_encode.tobytes()
+                        img_hash = hashlib.sha256(byte_data).hexdigest()
 
                         payload = {
                             "camera": channel,
@@ -157,7 +172,6 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
                             properties=pika.BasicProperties(delivery_mode=2)
                         )
                         last_sent_time = now_ts
-                        last_sent_hash = img_hash
                         frames_sent += 1
                         FRAMES_SENT.labels(camera_id=channel).inc()
                     else:
@@ -165,6 +179,8 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
                         CAPTURE_ERRORS.labels(camera_id=channel, error_type="encoding_failed").inc()
                     
                     time.sleep(FRAME_SLEEP)
+                
+                # --- OUTSIDE SCHEDULED HOURS ---
                 else:
                     if ffmpeg_running:
                         try:

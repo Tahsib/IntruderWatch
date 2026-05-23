@@ -86,8 +86,8 @@ def consume_frames(queue_name):
     # Start the memory manager thread
     threading.Thread(target=memory_manager, args=(state,), daemon=True).start()
 
-    # Load model once - Using YOLO11 LARGE on GPU for Absolute Maximum Accuracy
-    model = YOLO("yolo11l.pt")
+    # Load model once - Using YOLO11 MEDIUM for a balance of speed and accuracy
+    model = YOLO("yolo11m.pt")
     connection, channel = connect_rabbitmq(["frame_queue", "alert_queue"])
     channel.basic_qos(prefetch_count=1)
 
