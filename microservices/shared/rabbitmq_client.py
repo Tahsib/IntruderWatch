@@ -16,13 +16,10 @@ def connect_rabbitmq(queue_names, retries=15, delay=5, frame_max=0):
     password = os.getenv("RABBITMQ_PASS", "guest")
 
     credentials = pika.PlainCredentials(user, password)
-    
+
     # Connection parameters with heartbeat to prevent connection drops during idle
     kwargs = dict(
-        host=host, 
-        credentials=credentials,
-        heartbeat=60,
-        blocked_connection_timeout=300
+        host=host, credentials=credentials, heartbeat=60, blocked_connection_timeout=300
     )
     if frame_max:
         kwargs["frame_max"] = frame_max
@@ -42,7 +39,9 @@ def connect_rabbitmq(queue_names, retries=15, delay=5, frame_max=0):
             logger.info("Successfully connected to RabbitMQ at %s", host)
             return connection, channel
         except (pika.exceptions.AMQPConnectionError, ConnectionRefusedError):
-            logger.info("RabbitMQ not ready yet (Attempt %d/%d). Waiting...", attempt, retries)
+            logger.info(
+                "RabbitMQ not ready yet (Attempt %d/%d). Waiting...", attempt, retries
+            )
             if attempt < retries:
                 time.sleep(delay)
 
