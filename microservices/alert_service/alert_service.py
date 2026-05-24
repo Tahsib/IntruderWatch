@@ -29,7 +29,8 @@ ALERT_PHONE_NUMBERS = os.getenv("ALERT_PHONE_NUMBERS", "")
 ALERT_COOLDOWN = int(os.getenv("ALERT_COOLDOWN", "90"))
 
 # ntfy Configuration (Self-Hosted Private Alerts)
-NTFY_BASE_URL = os.getenv("NTFY_BASE_URL", "http://ntfy")
+NTFY_BASE_URL = os.getenv("NTFY_BASE_URL", "http://localhost:8081")
+NTFY_INTERNAL_URL = os.getenv("NTFY_INTERNAL_URL", "http://ntfy")
 VIEWER_BASE_URL = os.getenv("VIEWER_BASE_URL", "http://localhost:8085")
 ALERT_BYPASS_TOKEN = os.getenv("ALERT_BYPASS_TOKEN")
 
@@ -52,7 +53,7 @@ def send_ntfy_photo(camera_id, timestamp, filename):
     
     # Topic is unique per camera: e.g. camera_1, camera_2
     topic = f"camera_{camera_id}"
-    url = f"{NTFY_BASE_URL}/{topic}"
+    url = f"{NTFY_INTERNAL_URL}/{topic}"
     
     # Construct the image URL for the mobile app to download from viewer_service
     # Expected internal filename: /app/captures/camera_1/2026-05-20/det_...jpg

@@ -145,6 +145,7 @@ services:
       - .env
     environment:
       NTFY_BASE_URL: ${NTFY_BASE_URL:-http://localhost:8081}
+      NTFY_INTERNAL_URL: ${NTFY_INTERNAL_URL:-http://ntfy}
       VIEWER_BASE_URL: ${VIEWER_BASE_URL:-http://localhost:8085}
       ALERT_BYPASS_TOKEN: ${ALERT_BYPASS_TOKEN}
     volumes:
