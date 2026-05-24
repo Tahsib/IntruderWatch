@@ -15,6 +15,13 @@ logging.basicConfig(
 )
 
 
+def mask_phone(phone):
+    """Masks all but the last 4 digits of a phone number for secure logging."""
+    if not phone or len(phone) < 4:
+        return "****"
+    return "*" * (len(phone) - 4) + phone[-4:]
+
+
 # Function to send an SMS alert using Twilio's API via HTTP POST request
 def send_alert(message, to_phone_number):
     url = (
@@ -157,6 +164,7 @@ def capture_stream(
                         for number in to_phone_numbers.split(":"):
                             # send_alert(f"Human detected in channel-{channel} at {timestamp}", number)
                             call_alert("Intruder detected!!", number)
+                            logging.info(f"Alert triggered for {mask_phone(number)}")
                         last_alert_time = current_time
 
                         date_only = timestamp.split()[0]
