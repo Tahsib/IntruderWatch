@@ -18,8 +18,10 @@ jobs:
           python-version: '3.12'
       - name: Install Ruff
         run: pip install ruff
-      - name: Run Ruff
+      - name: Run Ruff Linter
         run: ruff check .
+      - name: Run Ruff Formatter (Check Only)
+        run: ruff format --check .
 
   validate-infra:
     name: 🐳 Docker Infrastructure Check
