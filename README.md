@@ -58,7 +58,7 @@ graph TD
     %% Traffic Flow
     C1 -- "RTSP" --> FC1
     C2 -- "RTSP" --> FC2
-    
+
     FC1 & FC2 -- "Raw BGR" --> MSE
     MSE -- "Motion Detected?" --> ENC
     ENC -- "Base64 JPEG" --> RMQ
@@ -69,7 +69,7 @@ graph TD
     BUF -- "Persist Frame" --> DISK
     ALRT -- "Async Notify" --> NOTI
     DISK -- "Secure Serve" --> VIEW
-    
+
     %% Monitoring Flow
     FC1 & FC2 & DET & ALRT & RMQ -- "RED Metrics" --> PROM
     NODE & CADV & GPU_EXP -- "USE Metrics" --> PROM

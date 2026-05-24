@@ -26,4 +26,4 @@ COPY detect.py .
 
 
 # Command to run your application
-CMD ["python", "detect.py"]  
+CMD ["python", "detect.py"]

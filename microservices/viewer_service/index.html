@@ -410,13 +410,13 @@
         async function init() {
             await loadCameras();
             lucide.createIcons();
-            
+
             document.getElementById('dateSelect').addEventListener('change', (e) => {
                 currentDate = e.target.value;
                 localStorage.setItem('last_date', currentDate);
                 loadImages(true);
             });
-            
+
             document.addEventListener('keydown', (e) => {
                 if (!document.getElementById('lightbox').classList.contains('active')) return;
                 if (e.key === 'ArrowLeft') navigate(-1);
@@ -465,7 +465,7 @@
             localStorage.setItem('last_camera', cam);
             document.querySelectorAll('.camera-item').forEach(i => i.classList.remove('active'));
             el.classList.add('active');
-            
+
             document.getElementById('cameraNameDisplay').textContent = cam.replace('camera_', 'Camera ');
             document.getElementById('cameraStatus').classList.add('active');
 
@@ -480,7 +480,7 @@
                     select.appendChild(opt);
                 });
                 select.disabled = false;
-                
+
                 if (isInitial && currentDate && dates.includes(currentDate)) {
                     select.value = currentDate;
                 } else if (dates.length > 0) {
@@ -488,7 +488,7 @@
                     select.value = currentDate;
                     localStorage.setItem('last_date', currentDate);
                 }
-                
+
                 loadImages(true);
             } catch (e) { console.error(e); }
         }
@@ -504,12 +504,12 @@
             try {
                 const res = await fetch(`${API_BASE}/cameras/${currentCamera}/dates/${currentDate}/images`);
                 const newImages = await res.json();
-                
+
                 const grid = document.getElementById('imageGrid');
-                if (showSpinner) grid.innerHTML = ''; 
+                if (showSpinner) grid.innerHTML = '';
 
                 const currentIds = new Set(newImages.map(img => `img-${img.replace(/[^a-zA-Z0-9]/g, '-')}`));
-                
+
                 // 1. Remove images that are no longer on the server
                 Array.from(grid.children).forEach(child => {
                     if (child.id && !currentIds.has(child.id)) {
@@ -530,7 +530,7 @@
                 allImages = newImages;
                 document.getElementById('imageCount').textContent = `${allImages.length} Captures`;
                 document.getElementById('initialState').style.display = 'none';
-                
+
                 const spinner = grid.querySelector('.spinner');
                 if (spinner) spinner.remove();
 
@@ -555,14 +555,14 @@
                     <div class="meta-tags"><span class="tag">AI Match</span></div>
                 </div>
             `;
-            
+
             const imgEl = card.querySelector('img');
             imgEl.onload = () => {
                 imgEl.classList.add('loaded');
                 const s = card.querySelector('.spinner');
                 if (s) s.remove();
             };
-            
+
             card.onclick = () => {
                 const actualIndex = allImages.indexOf(img);
                 openLightbox(actualIndex);
@@ -577,11 +577,11 @@
 
         async function pollNewImages() {
             if (!currentCamera || !currentDate) return;
-            
+
             // For security/live monitoring, we should poll if it's "today"
             // Using a more robust local date check
             const localToday = getLocalDateStr();
-            
+
             if (currentDate === localToday) {
                 await loadImages(false);
             }
@@ -591,7 +591,7 @@
             currentIndex = index;
             const img = allImages[index];
             const url = `/images/${currentCamera}/${currentDate}/${img}`;
-            
+
             document.getElementById('mainImg').src = url;
             document.getElementById('lightboxTime').textContent = img.split('_')[1]?.split('.')[0] || 'Image';
             document.getElementById('lightboxFile').textContent = img;
