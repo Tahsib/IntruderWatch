@@ -2,14 +2,14 @@
 
 ## Overview
 
-IntruderWatch is a high-performance intruder detection system designed as a distributed set of microservices orchestrated via RabbitMQ. It captures high-fidelity frames from RTSP security cameras, performs surgical human detection using GPU-accelerated **YOLO11 Large**, dispatches multi-channel alerts (Twilio + ntfy), and provides a secure web-based interface for visual audit.
+IntruderWatch is a high-performance intruder detection system designed as a distributed set of microservices orchestrated via RabbitMQ. It captures high-fidelity frames from RTSP security cameras, performs surgical human detection using GPU-accelerated **YOLO11 Medium**, dispatches multi-channel alerts (Twilio + ntfy), and provides a secure web-based interface for visual audit.
 
 The architecture is engineered for high-end hardware, leveraging an **Intel i7-12700K** for ingestion and an **AMD RX 6800 XT** (via ROCm) for real-time detection inference.
 
 ```
-[RTSP Source] --> [Ingestion Pipeline (i7 CPU)] --> [Message Broker (RabbitMQ)] --> [Inference Engine (AMD GPU)] --> [Notification Engine] --> [Twilio/ntfy]
-                                                                                                                      |
-                                                                                                    [Persistent Captures] <-- [Secure Viewer Service]
+[RTSP Source] --> [Ingestion Pipeline (i7 CPU)] --> [Motion Filter (MSE)] --> [Message Broker (RabbitMQ)] --> [Inference Engine (AMD GPU)] --> [Notification Engine] --> [Twilio/ntfy]
+                                                                                                                                      |
+                                                                                                                    [Persistent Captures] <-- [Secure Viewer Service]
 ```
 
 ---
@@ -22,8 +22,8 @@ The architecture is engineered for high-end hardware, leveraging an **Intel i7-1
 
 **Mechanism:**
 - Utilizes `ffmpeg` to interface with RTSP streams.
-- Extracts raw BGR24 frames at **6 FPS** (configurable), ensuring high temporal resolution for motion tracking.
-- Performs **Temporal Deduplication** via SHA-256 hashing to eliminate redundant processing of static frames.
+- Extracts raw BGR24 frames at **4 FPS** (configurable), striking a balance between detection accuracy and thermal safety.
+- Performs **MSE-based Motion Filtering** to eliminate redundant processing of static frames (ignoring sensor grain/noise).
 - Encodes standardized frames as high-quality **JPEG (85%)**, significantly reducing broker bandwidth while maintaining evidence-grade detail.
 
 **Primary Configuration:**
@@ -31,10 +31,11 @@ The architecture is engineered for high-end hardware, leveraging an **Intel i7-1
 |---|---|---|
 | `STREAM_IP` | Camera/NVR Network Address | - |
 | `CHANNEL` | Stream Channel Identifier | - |
-| `FPS` | Targeted Frame Rate | 6 |
+| `FPS` | Targeted Frame Rate | 4 |
 | `FRAME_WIDTH` | Capture Resolution (Width) | 1920 (1080P) |
 | `FRAME_HEIGHT` | Capture Resolution (Height) | 1080 (1080P) |
 | `JPEG_QUALITY` | Encoder Quality Profile | 85 |
+| `MOTION_THRESHOLD` | Sensitivity for MSE Filtering | 5.0 |
 
 ---
 
@@ -43,7 +44,7 @@ The architecture is engineered for high-end hardware, leveraging an **Intel i7-1
 **Purpose:** Executes deep learning-based object detection on high-resolution frame buffers.
 
 **Mechanism:**
-- Deploys the **YOLO11 Large** model, optimized for maximum detection accuracy.
+- Deploys the **YOLO11 Medium** model, optimized for a perfect balance of speed and thermal efficiency.
 - Leverages **AMD ROCm** hardware acceleration on the RX 6800 XT.
 - Employs **FP16 (Half-Precision)** math to double inference throughput and reduce VRAM bandwidth pressure.
 - Implements **Serialized GPU Warm-up** to ensure driver stability during multi-replica initialization.
@@ -55,8 +56,8 @@ The architecture is engineered for high-end hardware, leveraging an **Intel i7-1
 **Hardware Specifications:**
 - **Inference Resolution**: 1280px (Standardized high-fidelity input).
 - **Math Precision**: FP16 (Half-precision).
-- **Concurrency**: 4 Replicas (Optimized for 48+ aggregate FPS).
-- **Memory Profile**: 12GB RAM per cluster.
+- **Concurrency**: 2 Replicas (Optimized for thermal stability and high-end gaming headroom).
+- **Memory Profile**: 6GB RAM per cluster.
 
 ---
 
@@ -91,15 +92,16 @@ The architecture is engineered for high-end hardware, leveraging an **Intel i7-1
 
 **Components:**
 - **Prometheus**: Aggregates RED (Rate, Errors, Duration) metrics from all services.
-- **AMD GPU Exporter**: Monitors RX 6800 XT Core frequency, temperature, and VRAM utilization.
+- **AMD GPU Exporter**: Monitors RX 6800 XT Core frequency, **Junction Temperature**, and **Power Draw (Watts)**.
 - **cAdvisor**: Provides granular container-level resource consumption data.
 - **Node Exporter**: Tracks host-level hardware telemetry.
-- **Grafana**: Orchestrates data into the **Master Command Center** dashboard.
+- **Grafana**: Orchestrates data into the **Master Command Center** dashboard with real-time hardware status and service uptime timelines.
 
 **Key Performance Indicators (KPIs):**
 - **Inference Latency**: Milliseconds per detection cycle.
 - **Ingestion Throughput**: Aggregate FPS across the camera network.
 - **Hardware Saturation**: USE (Utilization, Saturation, Errors) metrics for CPU, GPU, and RAM.
+- **Thermal Footprint**: Real-time junction temperature tracking to ensure long-term hardware health.
 
 ---
 
