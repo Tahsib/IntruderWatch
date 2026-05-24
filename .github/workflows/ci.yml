@@ -45,3 +45,14 @@ jobs:
           test -f microservices/human_detector/Dockerfile
           test -f microservices/alert_service/Dockerfile
           test -f microservices/viewer_service/Dockerfile
+
+  validate-dockerfiles:
+    name: 🐳 Dockerfile Lint (Hadolint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          recursive: true
+          failure-threshold: error
