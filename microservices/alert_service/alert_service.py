@@ -49,6 +49,13 @@ VIEWER_BASE_URL = os.getenv("VIEWER_BASE_URL", "http://localhost:8085")
 ALERT_BYPASS_TOKEN = os.getenv("ALERT_BYPASS_TOKEN")
 
 
+def mask_phone(phone):
+    """Masks all but the last 4 digits of a phone number for secure logging."""
+    if not phone or len(phone) < 4:
+        return "****"
+    return "*" * (len(phone) - 4) + phone[-4:]
+
+
 def send_call_alert(client, to_phone_number):
     try:
         call = client.calls.create(
@@ -56,10 +63,12 @@ def send_call_alert(client, to_phone_number):
             to=to_phone_number,
             from_=TWILIO_PHONE_NUMBER,
         )
-        logging.info(f"Call alert sent to {to_phone_number}. SID: {call.sid}")
+        logging.info(
+            f"Call alert sent to {mask_phone(to_phone_number)}. SID: {call.sid}"
+        )
         NOTIFICATIONS_SENT.labels(type="twilio_call", destination=to_phone_number).inc()
     except Exception as e:
-        logging.error(f"Failed to send call to {to_phone_number}: {e}")
+        logging.error(f"Failed to send call to {mask_phone(to_phone_number)}: {e}")
         NOTIFICATION_ERRORS.labels(
             type="twilio_call", destination=to_phone_number, error_type=type(e).__name__
         ).inc()
@@ -105,7 +114,9 @@ def send_ntfy_photo(camera_id, timestamp, filename):
         response = requests.post(url, headers=headers, timeout=15)
         response.raise_for_status()
 
-        logging.info(f"ntfy private photo alert link sent for Camera {camera_id}.")
+        logging.info(
+            f"ntfy private photo alert link sent for Camera {camera_id} (Token: [HIDDEN])."
+        )
         NOTIFICATIONS_SENT.labels(type="ntfy_photo", destination=camera_id).inc()
     except Exception as e:
         logging.error(f"Failed to send ntfy photo link for Cam {camera_id}: {e}")
