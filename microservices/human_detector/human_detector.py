@@ -236,7 +236,7 @@ def consume_frames(queue_name):
                         )
                         HUMANS_DETECTED.labels(
                             camera_id=camera_id, worker_id=INSTANCE_ID
-                        ).inc()
+                        ).inc(len(results.boxes))
 
                         if success:
                             logging.info(
