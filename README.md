@@ -2,7 +2,7 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-IntruderWatch is an industry-grade, real-time intruder detection system optimized for high-end hardware (**Intel i7-12700K & AMD RX 6800 XT**). It leverages **YOLO11 Large** for surgical detection precision and **AMD ROCm** for high-speed GPU-accelerated inference.
+IntruderWatch is an industry-grade, real-time intruder detection system optimized for high-end hardware (**Intel i7-12700K & AMD RX 6800 XT**). It leverages **YOLO11 Medium** for a perfect balance of surgical precision and thermal efficiency, alongside **AMD ROCm** for high-speed GPU-accelerated inference.
 
 ## 🏗️ System Architecture
 
@@ -24,7 +24,7 @@ graph TD
 
     subgraph "Intel i7-12700K (Host CPU)"
         subgraph "Processing Stack"
-            HASH[Temporal Deduplication]
+            MSE[MSE Motion Filtering]
             ENC[JPEG Encoder]
         end
 
@@ -37,12 +37,13 @@ graph TD
             GRAF[Grafana Master Dashboard]
             CADV[cAdvisor]
             NODE[Node Exporter]
+            GPU_EXP[AMD GPU Exporter]
         end
     end
 
     subgraph "AMD RX 6800 XT (GPU)"
         subgraph "Detection Inference (ROCm)"
-            DET[Detector Cluster: YOLO11 Large]
+            DET[Detector Cluster: YOLO11 Medium]
             BUF[High-Res Inference Buffer]
         end
     end
@@ -58,8 +59,8 @@ graph TD
     C1 -- "RTSP" --> FC1
     C2 -- "RTSP" --> FC2
     
-    FC1 & FC2 -- "Raw BGR" --> HASH
-    HASH -- "Unique Frames" --> ENC
+    FC1 & FC2 -- "Raw BGR" --> MSE
+    MSE -- "Motion Detected?" --> ENC
     ENC -- "Base64 JPEG" --> RMQ
     RMQ -- "Queue: frame_queue" --> DET
     DET -- "ROCm Acceleration" --> BUF
@@ -71,18 +72,18 @@ graph TD
     
     %% Monitoring Flow
     FC1 & FC2 & DET & ALRT & RMQ -- "RED Metrics" --> PROM
-    NODE & CADV -- "USE Metrics" --> PROM
+    NODE & CADV & GPU_EXP -- "USE Metrics" --> PROM
     PROM -- "PromQL" --> GRAF
 ```
 
-## 🚀 Key Features (Ultra Quality Mode)
+## 🚀 Key Features (High Efficiency Mode)
 
-- **Core Inference Engine**: Upgraded to **YOLO11 Large (v11l)** for maximum accuracy and near-zero false positives.
+- **Core Inference Engine**: Upgraded to **YOLO11 Medium (v11m)** for elite accuracy with significantly reduced thermal impact.
 - **Hardware Accelerated**: Full **AMD GPU acceleration** via ROCm, enabling real-time high-resolution inference.
+- **Motion Pre-Filtering**: Advanced **MSE (Mean Squared Error)** filtering on the CPU to ignore sensor noise and prevent redundant GPU work.
 - **High-Fidelity Source**: Captures at **1080P (1920x1080)** and processes at **1280px** inference resolution.
-- **Temporal Precision**: **6 FPS** capture rate (configurable) for high-precision motion tracking.
-- **Optimized Bandwidth**: Switched from large PNGs to high-quality **JPEG (85%)** for 90% faster transmission.
-- **Master Command Center**: Industry-standard **Grafana dashboard** with hardware USE metrics and service RED metrics.
+- **Temporal Balance**: **4 FPS** capture rate (configurable) for optimal motion tracking and hardware longevity.
+- **Master Command Center**: Industry-standard **Grafana dashboard** with real-time GPU junction temperature and power draw monitoring.
 
 ---
 

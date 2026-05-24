@@ -65,10 +65,46 @@
           "unit": "percent"
         }
       },
-      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 6 }, "id": 2,
+      "gridPos": { "h": 5, "w": 4, "x": 0, "y": 6 }, "id": 2,
       "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true },
       "targets": [ { "expr": "100 - (avg by (instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)", "refId": "A" } ],
       "title": "Host CPU Load", "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "max": 110, "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 80 }, { "color": "red", "value": 95 } ]
+          },
+          "unit": "celsius"
+        }
+      },
+      "gridPos": { "h": 5, "w": 4, "x": 4, "y": 6 }, "id": 50,
+      "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true },
+      "targets": [ { "expr": "gpu_junction_temperature", "refId": "A" } ],
+      "title": "GPU Temp (Junction)", "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "max": 300, "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 200 }, { "color": "red", "value": 260 } ]
+          },
+          "unit": "watt"
+        }
+      },
+      "gridPos": { "h": 5, "w": 4, "x": 8, "y": 6 }, "id": 51,
+      "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true },
+      "targets": [ { "expr": "gpu_average_package_power", "refId": "A" } ],
+      "title": "GPU Power", "type": "gauge"
     },
     {
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
@@ -83,7 +119,7 @@
           "unit": "percent"
         }
       },
-      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 6 }, "id": 3,
+      "gridPos": { "h": 5, "w": 4, "x": 12, "y": 6 }, "id": 3,
       "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true },
       "targets": [ { "expr": "gpu_gfx_activity", "refId": "A" } ],
       "title": "GPU Activity", "type": "gauge"
@@ -101,10 +137,10 @@
           "unit": "percent"
         }
       },
-      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 6 }, "id": 4,
+      "gridPos": { "h": 5, "w": 4, "x": 16, "y": 6 }, "id": 4,
       "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true },
       "targets": [ { "expr": "((node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes) * 100", "refId": "A" } ],
-      "title": "Host RAM Usage (%)", "type": "gauge"
+      "title": "Host RAM Usage", "type": "gauge"
     },
     {
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
@@ -119,19 +155,51 @@
           "unit": "percent"
         }
       },
-      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 6 }, "id": 5,
+      "gridPos": { "h": 5, "w": 4, "x": 20, "y": 6 }, "id": 5,
       "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true },
       "targets": [ { "expr": "(gpu_used_vram / gpu_total_vram) * 100", "refId": "A" } ],
-      "title": "GPU VRAM Usage (%)", "type": "gauge"
+      "title": "GPU VRAM Usage", "type": "gauge"
     },
     {
       "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 11 },
+      "id": 60, "panels": [], "title": "🌐 Service Health & Connectivity", "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [
+            { "options": { "0": { "color": "red", "index": 1, "text": "OFFLINE" }, "1": { "color": "green", "index": 0, "text": "ONLINE" } }, "type": "value" }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ]
+          }
+        }
+      },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 12 }, "id": 61,
+      "options": {
+        "alignValue": "left",
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "mergeValues": true,
+        "rowHeight": 0.9,
+        "showValue": "always",
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        { "expr": "up", "legendFormat": "{{job}} {{camera_id}} {{instance}}", "refId": "A" }
+      ],
+      "title": "Service Uptime Timeline (Real-time Health)", "type": "state-timeline"
+    },
+    {
+      "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 },
       "id": 10, "panels": [], "title": "📷 Ingestion & AI Pipeline Deep-Dive", "type": "row"
     },
     {
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "fieldConfig": { "defaults": { "custom": { "fillOpacity": 15, "lineInterpolation": "smooth", "lineWidth": 2 }, "unit": "ms" } },
-      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 12 }, "id": 7,
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 25 }, "id": 7,
       "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "right" }, "tooltip": { "mode": "multi" } },
       "targets": [ { "expr": "(sum by (camera_id) (rate(human_detector_processing_seconds_sum[1m])) / sum by (camera_id) (rate(human_detector_processing_seconds_count[1m]))) * 1000", "legendFormat": "Cam {{camera_id}}", "refId": "A" } ],
       "title": "Inference Latency per Camera", "type": "timeseries"
@@ -139,7 +207,7 @@
     {
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "fieldConfig": { "defaults": { "custom": { "fillOpacity": 15, "lineInterpolation": "smooth", "lineWidth": 2 }, "unit": "reqps" } },
-      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 12 }, "id": 8,
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 25 }, "id": 8,
       "options": { "legend": { "calcs": ["sum", "mean"], "displayMode": "table", "placement": "right" }, "tooltip": { "mode": "multi" } },
       "targets": [ { "expr": "sum by (camera_id) (rate(human_detector_frames_processed_total[1m]))", "legendFormat": "Cam {{camera_id}}", "refId": "A" } ],
       "title": "AI Throughput per Camera", "type": "timeseries"
@@ -147,7 +215,7 @@
     {
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }, "unit": "reqps" } },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 }, "id": 21,
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 35 }, "id": 21,
       "options": { "legend": { "displayMode": "table", "placement": "right" } },
       "targets": [
         { "expr": "rate(frame_capturer_sent_total[1m])", "legendFormat": "Cam {{camera_id}} - Sent", "refId": "A" },
@@ -156,13 +224,13 @@
       "title": "Ingestion Efficiency (Sent vs Deduplicated)", "type": "timeseries"
     },
     {
-      "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 },
+      "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 43 },
       "id": 30, "panels": [], "title": "🐋 Microservices Micro-Management (Container Resources)", "type": "row"
     },
     {
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "fieldConfig": { "defaults": { "unit": "decbytes" } },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 31 }, "id": 31,
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 44 }, "id": 31,
       "options": { "legend": { "displayMode": "table", "placement": "right" } },
       "targets": [ { "expr": "container_memory_usage_bytes{container_label_com_docker_compose_service!=\"\", container_label_com_docker_compose_service!~\"prometheus|grafana|cadvisor|node_exporter|amd_gpu_exporter\"}", "legendFormat": "{{container_label_com_docker_compose_service}}", "refId": "A" } ],
       "title": "Microservice RAM Usage", "type": "timeseries"
@@ -170,17 +238,17 @@
     {
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "fieldConfig": { "defaults": { "unit": "percent" } },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 }, "id": 32,
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 44 }, "id": 32,
       "options": { "legend": { "displayMode": "table", "placement": "right" } },
       "targets": [ { "expr": "rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service!=\"\", container_label_com_docker_compose_service!~\"prometheus|grafana|cadvisor|node_exporter|amd_gpu_exporter\"}[1m]) * 100", "legendFormat": "{{container_label_com_docker_compose_service}}", "refId": "A" } ],
       "title": "Microservice CPU Load", "type": "timeseries"
     },
     {
-      "collapsed": true, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 39 },
+      "collapsed": true, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 52 },
       "id": 40, "panels": [
         {
           "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 40 }, "id": 41,
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 53 }, "id": 41,
           "options": { "legend": { "displayMode": "table" } },
           "targets": [ { "expr": "100 - (irate(node_cpu_seconds_total{mode=\"idle\"}[5m]) * 100)", "legendFormat": "Core {{cpu}}", "refId": "A" } ],
           "title": "Per-Core CPU Load (%)", "type": "timeseries"
