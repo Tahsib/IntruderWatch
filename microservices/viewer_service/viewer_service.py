@@ -1,6 +1,7 @@
 import os
 import secrets
 import time
+import logging
 from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Depends, HTTPException, status
@@ -170,14 +171,29 @@ async def serve_image(
             raise e
 
     # 3. Path Security & File Serving
-    image_path = CAPTURES_DIR / camera / date / filename
+    # Prevent path injection by ensuring the final path is strictly inside CAPTURES_DIR
+    try:
+        # Construct path and resolve it to remove any .. or symlinks
+        image_path = (CAPTURES_DIR / camera / date / filename).resolve()
+        base_path = CAPTURES_DIR.resolve()
 
-    # Security: prevent directory traversal
-    if not image_path.exists() or not image_path.is_file():
-        return FileResponse("", status_code=404)
+        # Check if the resolved path starts with the base captures directory
+        if not str(image_path).startswith(str(base_path)):
+            logging.warning(f"Blocked potential path injection attempt: {image_path}")
+            raise HTTPException(
+                status_code=403, detail="Forbidden: Path traversal blocked"
+            )
 
-    if not str(image_path.resolve()).startswith(str(CAPTURES_DIR.resolve())):
-        return FileResponse("", status_code=403)
+        if not image_path.exists() or not image_path.is_file():
+            raise HTTPException(status_code=404, detail="Image not found")
+
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logging.error(f"Error validating path: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid path request"
+        )
 
     IMAGES_SERVED_TOTAL.inc()
     return FileResponse(image_path)
