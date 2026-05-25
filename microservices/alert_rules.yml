@@ -1,0 +1,69 @@
+groups:
+  - name: intruder_watch_alerts
+    rules:
+      # --- SECURITY & AVAILABILITY (Topic: intruder-alerts) ---
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is DOWN"
+
+      # --- HARDWARE MONITORING (Topic: hardware-alerts) ---
+      - alert: GPUTempHigh
+        expr: gpu_junction_temperature > 75
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GPU Temp: {{ $value }}°C"
+
+      - alert: GPUPowerHigh
+        expr: gpu_average_package_power > 150
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GPU Power: {{ $value }}W"
+
+      # --- INFRASTRUCTURE & HOST (Topic: infra-alerts) ---
+      - alert: RabbitMQBacklog
+        expr: sum by (queue) (rabbitmq_queue_messages_ready) > 50
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Queue {{ $labels.queue }} Lag: {{ $value }} msgs"
+
+      - alert: HostHighCPU
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 70
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU Usage: {{ $value | printf \"%.0f\" }}%"
+
+      - alert: HostLowDiskSpace
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk Space: {{ $value | printf \"%.0f\" }}% left"
+
+      - alert: CaptureErrors
+        expr: increase(frame_capturer_errors_total[5m]) > 5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Cam {{ $labels.camera_id }} errors: {{ $value | printf \"%.0f\" }}"
+
+      - alert: DetectorErrors
+        expr: increase(human_detector_errors_total[5m]) > 5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "AI Detector errors: {{ $value | printf \"%.0f\" }}"

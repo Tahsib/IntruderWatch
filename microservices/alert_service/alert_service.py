@@ -4,6 +4,7 @@ import json
 import logging
 import threading
 import requests
+from flask import Flask, request, jsonify
 from twilio.rest import Client
 from shared.rabbitmq_client import connect_rabbitmq
 from prometheus_client import start_http_server, Counter
@@ -48,6 +49,67 @@ NTFY_INTERNAL_URL = os.getenv("NTFY_INTERNAL_URL", "http://ntfy")
 VIEWER_BASE_URL = os.getenv("VIEWER_BASE_URL", "http://localhost:8085")
 ALERT_BYPASS_TOKEN = os.getenv("ALERT_BYPASS_TOKEN")
 
+# --- Flask Webhook Receiver ---
+app = Flask(__name__)
+
+
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    """Receives JSON alerts from Alertmanager and sends clean ntfy messages."""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"error": "No JSON data"}), 400
+
+        # Alertmanager sends multiple alerts in one POST
+        for alert in data.get("alerts", []):
+            summary = alert.get("annotations", {}).get("summary", "No summary provided")
+            alertname = alert.get("labels", {}).get("alertname", "Unknown Alert")
+            severity = alert.get("labels", {}).get("severity", "warning")
+            status = alert.get("status", "firing")
+
+            # Determine the ntfy topic based on Alertmanager's target
+            # Note: Alertmanager config will point to specific paths e.g. /webhook?topic=infra-alerts
+            topic = request.args.get("topic", "infra-alerts")
+            url = f"{NTFY_INTERNAL_URL}/{topic}"
+
+            # Format the clean message
+            # status: firing -> 🚨, resolved -> ✅
+            icon = "🚨 " if status == "firing" else "✅ "
+            message = f"{icon}{summary}"
+
+            # Priority (5 for critical, 3 for warning, 1 for resolved)
+            priority = "3"
+            if status == "resolved":
+                priority = "1"
+            elif severity == "critical":
+                priority = "5"
+
+            headers = {
+                "Title": alertname,
+                "Priority": priority,
+                "Tags": "warning" if status == "firing" else "white_check_mark",
+            }
+
+            # Send clean text body to ntfy
+            response = requests.post(url, data=message, headers=headers, timeout=10)
+            response.raise_for_status()
+
+            logging.info(f"Clean alert sent to ntfy/{topic}: {message}")
+            NOTIFICATIONS_SENT.labels(type="ntfy_text", destination=topic).inc()
+
+        return jsonify({"status": "ok"}), 200
+
+    except Exception as e:
+        logging.error(f"Webhook processing error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+def run_webhook_server():
+    """Runs the Flask server in a separate thread."""
+    # Use port 8082 to avoid conflict with Prometheus metrics (8002)
+    app.run(host="0.0.0.0", port=8082)
+
 
 def mask_phone(phone):
     """Masks all but the last 4 digits of a phone number for secure logging."""
@@ -78,12 +140,11 @@ def send_ntfy_photo(camera_id, timestamp, filename):
     # Truncate milliseconds for a cleaner title
     clean_timestamp = timestamp.split(".")[0] if "." in timestamp else timestamp
 
-    # Topic is unique per camera: e.g. camera_1, camera_2
-    topic = f"camera_{camera_id}"
+    # Unified topic for all cameras
+    topic = "intruder-alerts"
     url = f"{NTFY_INTERNAL_URL}/{topic}"
 
     # Construct the image URL for the mobile app to download from viewer_service
-    # Expected internal filename: /app/captures/camera_1/2026-05-20/det_...jpg
     try:
         parts = filename.split("/")
         if len(parts) >= 4:
@@ -102,10 +163,10 @@ def send_ntfy_photo(camera_id, timestamp, filename):
             return
 
         headers = {
-            "Title": "Human Detected",
-            "Message": f"Time: {clean_timestamp}",
+            "Title": f"Intruder: Camera {camera_id}",
+            "Message": f"Detection at {clean_timestamp}",
             "Priority": "5",
-            "Tags": "warning,camera",
+            "Tags": "rotating_light,camera",
             "Attach": image_url,
             "Click": image_url,
         }
@@ -185,10 +246,16 @@ def alert_service(queue_name):
 
 
 if __name__ == "__main__":
+    # 1. Start Prometheus metrics server
     try:
         start_http_server(8002)
         logging.info("Prometheus metrics started on 8002")
     except Exception as e:
         logging.error(f"Failed to start metrics: {e}")
 
+    # 2. Start the Webhook Receiver thread
+    threading.Thread(target=run_webhook_server, daemon=True).start()
+    logging.info("Alert Beautifier Webhook started on 8082")
+
+    # 3. Run the RabbitMQ consumer
     alert_service(queue_name="alert_queue")

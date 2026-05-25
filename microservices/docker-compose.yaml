@@ -146,7 +146,7 @@ services:
     environment:
       NTFY_BASE_URL: ${NTFY_BASE_URL:-http://localhost:8081}
       NTFY_INTERNAL_URL: ${NTFY_INTERNAL_URL:-http://ntfy}
-      VIEWER_BASE_URL: ${VIEWER_BASE_URL:-http://localhost:8085}
+      VIEWER_BASE_URL: ${VIEWER_BASE_URL}
       ALERT_BYPASS_TOKEN: ${ALERT_BYPASS_TOKEN}
     volumes:
       - ./captures:/app/captures:ro
@@ -263,6 +263,7 @@ services:
     container_name: prometheus
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./alert_rules.yml:/etc/prometheus/alert_rules.yml
       - prometheus-data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -273,6 +274,22 @@ services:
     restart: unless-stopped
     networks:
       - detection
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - ./alertmanager_templates.tmpl:/etc/alertmanager/alertmanager_templates.tmpl
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--cluster.listen-address='
+    ports:
+      - "9093:9093"
+    restart: unless-stopped
+    networks:
+      - detection
+
 
   grafana:
     image: grafana/grafana:latest
