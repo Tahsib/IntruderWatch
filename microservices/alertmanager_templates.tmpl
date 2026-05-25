@@ -1,0 +1,3 @@
+{{ define "ntfy.plain_message" -}}
+{{ range .Alerts }}{{ .Annotations.summary }}
+{{ end }}{{ end }}

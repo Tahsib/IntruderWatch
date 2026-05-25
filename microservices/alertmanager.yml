@@ -1,0 +1,32 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname']
+  group_wait: 30s
+  group_interval: 2m
+  repeat_interval: 5m
+  receiver: 'infra-alerts'
+  routes:
+    - match:
+        severity: critical
+      receiver: 'intruder-alerts'
+    - match_re:
+        alertname: '^GPU.*'
+      receiver: 'hardware-alerts'
+
+receivers:
+  - name: 'intruder-alerts'
+    webhook_configs:
+      - url: 'http://alert_service:8082/webhook?topic=intruder-alerts'
+        send_resolved: true
+
+  - name: 'infra-alerts'
+    webhook_configs:
+      - url: 'http://alert_service:8082/webhook?topic=infra-alerts'
+        send_resolved: true
+
+  - name: 'hardware-alerts'
+    webhook_configs:
+      - url: 'http://alert_service:8082/webhook?topic=hardware-alerts'
+        send_resolved: true
