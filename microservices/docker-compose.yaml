@@ -147,6 +147,7 @@ services:
       NTFY_BASE_URL: ${NTFY_BASE_URL:-http://localhost:8081}
       NTFY_INTERNAL_URL: ${NTFY_INTERNAL_URL:-http://ntfy}
       VIEWER_BASE_URL: ${VIEWER_BASE_URL}
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:-tahsib.dev}
       ALERT_BYPASS_TOKEN: ${ALERT_BYPASS_TOKEN}
     volumes:
       - ./captures:/app/captures:ro
@@ -169,6 +170,7 @@ services:
       - serve
     environment:
       - NTFY_BASE_URL=${NTFY_BASE_URL:-http://localhost:8081}
+      - NTFY_UPSTREAM_BASE_URL=https://ntfy.sh
       - NTFY_ATTACHMENT_CACHE_DIR=/var/cache/ntfy/attachments
       - NTFY_ATTACHMENT_TOTAL_SIZE_LIMIT=1G
       - NTFY_ATTACHMENT_FILE_SIZE_LIMIT=10M
@@ -330,6 +332,17 @@ services:
       - ./promtail-config.yaml:/etc/promtail/config.yml
     command: -config.file=/etc/promtail/config.yml
     restart: unless-stopped
+    networks:
+      - detection
+
+  # Cloudflare Tunnel for secure remote access and real-time ntfy
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared_tunnel
+    restart: unless-stopped
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    command: tunnel --no-autoupdate run
     networks:
       - detection
 

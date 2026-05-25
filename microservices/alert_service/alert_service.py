@@ -46,7 +46,9 @@ ALERT_COOLDOWN = int(os.getenv("ALERT_COOLDOWN", "90"))
 # ntfy Configuration (Self-Hosted Private Alerts)
 NTFY_BASE_URL = os.getenv("NTFY_BASE_URL", "http://localhost:8081")
 NTFY_INTERNAL_URL = os.getenv("NTFY_INTERNAL_URL", "http://ntfy")
-VIEWER_BASE_URL = os.getenv("VIEWER_BASE_URL", "http://localhost:8085")
+PUBLIC_DOMAIN = os.getenv("PUBLIC_DOMAIN", "yourdomain.com")
+# Mobile notifications use the secure public tunnel
+VIEWER_PUBLIC_URL = f"https://watch.{PUBLIC_DOMAIN}"
 ALERT_BYPASS_TOKEN = os.getenv("ALERT_BYPASS_TOKEN")
 
 # --- Flask Webhook Receiver ---
@@ -171,9 +173,9 @@ def send_ntfy_photo(camera_id, timestamp, filename):
             date_folder = parts[-2]
             file_name = parts[-1]
 
-            # Use public-facing base URL for the phone app
+            # Use the secure public-facing domain for the phone app
             image_url = (
-                f"{VIEWER_BASE_URL}/images/{cam_folder}/{date_folder}/{file_name}"
+                f"{VIEWER_PUBLIC_URL}/images/{cam_folder}/{date_folder}/{file_name}"
             )
             if ALERT_BYPASS_TOKEN:
                 image_url += f"?token={ALERT_BYPASS_TOKEN}"
