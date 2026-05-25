@@ -4,7 +4,7 @@ groups:
       # --- SECURITY & AVAILABILITY (Topic: intruder-alerts) ---
       - alert: ServiceDown
         expr: up == 0
-        for: 2m
+        for: 5m
         labels:
           severity: critical
         annotations:
@@ -12,25 +12,25 @@ groups:
 
       # --- HARDWARE MONITORING (Topic: hardware-alerts) ---
       - alert: GPUTempHigh
-        expr: max by (instance, gpu_id) (avg_over_time(gpu_junction_temperature[1m])) > 75
-        for: 1m
+        expr: max by (instance, gpu_id) (avg_over_time(gpu_junction_temperature[5m])) > 75
+        for: 5m
         labels:
           severity: warning
         annotations:
           summary: "GPU Temp: {{ $value | printf \"%.1f\" }}°C"
 
       - alert: GPUPowerHigh
-        expr: gpu_average_package_power > 150
-        for: 1m
+        expr: max by (instance, gpu_id) (avg_over_time(gpu_average_package_power[5m])) > 150
+        for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "GPU Power: {{ $value }}W"
+          summary: "GPU Power: {{ $value | printf \"%.0f\" }}W"
 
       # --- INFRASTRUCTURE & HOST (Topic: infra-alerts) ---
       - alert: RabbitMQBacklog
         expr: sum by (queue) (rabbitmq_queue_messages_ready) > 50
-        for: 2m
+        for: 5m
         labels:
           severity: warning
         annotations:
@@ -54,7 +54,7 @@ groups:
 
       - alert: CaptureErrors
         expr: increase(frame_capturer_errors_total[5m]) > 5
-        for: 1m
+        for: 5m
         labels:
           severity: warning
         annotations:
@@ -62,7 +62,7 @@ groups:
 
       - alert: DetectorErrors
         expr: increase(human_detector_errors_total[5m]) > 5
-        for: 1m
+        for: 5m
         labels:
           severity: warning
         annotations:
