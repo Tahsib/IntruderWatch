@@ -12,12 +12,12 @@ groups:
 
       # --- HARDWARE MONITORING (Topic: hardware-alerts) ---
       - alert: GPUTempHigh
-        expr: gpu_junction_temperature > 75
+        expr: max by (instance, gpu_id) (avg_over_time(gpu_junction_temperature[1m])) > 75
         for: 1m
         labels:
           severity: warning
         annotations:
-          summary: "GPU Temp: {{ $value }}°C"
+          summary: "GPU Temp: {{ $value | printf \"%.1f\" }}°C"
 
       - alert: GPUPowerHigh
         expr: gpu_average_package_power > 150
