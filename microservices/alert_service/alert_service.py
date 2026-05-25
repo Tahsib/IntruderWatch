@@ -93,20 +93,21 @@ def webhook():
             url = f"{NTFY_INTERNAL_URL}/{safe_topic}"
 
             # Format the clean message
-            icon = "🚨 " if status == "firing" else "✅ "
-            message = f"{icon}{summary}"
-
-            # Priority (5 for critical, 3 for warning, 1 for resolved)
-            priority = "3"
-            if status == "resolved":
+            if status == "firing":
+                icon = "🚨 "
+                message = f"{icon}{summary}"
+                tag = "warning"
+                priority = "5" if severity == "critical" else "3"
+            else:
+                icon = "✅ "
+                message = f"{icon}RESOLVED: {alertname}"
+                tag = "white_check_mark"
                 priority = "1"
-            elif severity == "critical":
-                priority = "5"
 
             headers = {
                 "Title": str(alertname)[:100],
                 "Priority": priority,
-                "Tags": "warning" if status == "firing" else "white_check_mark",
+                "Tags": tag,
             }
 
             # Send clean text body to ntfy
