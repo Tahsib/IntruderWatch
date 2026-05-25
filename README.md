@@ -80,9 +80,11 @@ graph TD
 
 - **Core Inference Engine**: Upgraded to **YOLO11 Medium (v11m)** for elite accuracy with significantly reduced thermal impact.
 - **Hardware Accelerated**: Full **AMD GPU acceleration** via ROCm, enabling real-time high-resolution inference.
+- **Unified Alerting Stack**: Professional-grade monitoring using **Prometheus Alertmanager** and **ntfy** for instant, beautifully formatted notifications.
+- **Secure Remote Access**: Integrated **Cloudflare Tunnel** for encrypted, zero-port-forwarding access to camera feeds and alerts from anywhere.
+- **Real-Time Push**: Configured with upstream push servers for **instant mobile delivery** on iOS and Android.
 - **Motion Pre-Filtering**: Advanced **MSE (Mean Squared Error)** filtering on the CPU to ignore sensor noise and prevent redundant GPU work.
 - **High-Fidelity Source**: Captures at **1080P (1920x1080)** and processes at **1280px** inference resolution.
-- **Temporal Balance**: **4 FPS** capture rate (configurable) for optimal motion tracking and hardware longevity.
 - **Master Command Center**: Industry-standard **Grafana dashboard** with real-time GPU junction temperature and power draw monitoring.
 
 ---
@@ -92,12 +94,21 @@ graph TD
 **Microservices** (Current):
 - `microservices/frame_capturer/` - 1080P/6FPS RTSP capture via ffmpeg.
 - `microservices/human_detector/` - GPU-accelerated YOLO11L detection.
-- `microservices/alert_service/` - Multi-channel (Twilio + ntfy) notification engine.
+- `microservices/alert_service/` - Unified notification engine with "Alert Beautifier" logic.
 - `microservices/viewer_service/` - FastAPI web UI for secure detection browsing.
+- `microservices/tunnel/` - Cloudflare Tunnel for secure remote access.
 - `microservices/grafana/` & `prometheus/` - 'Master Command Center' observability suite.
 
-**Legacy**:
-- `monolith/` - Reference single-container detector (MobileNet-SSD).
+---
+
+## 🔔 Proactive Alerting
+
+The system monitors more than just intruders. You receive real-time notifications for:
+
+- **Security**: Instant intruder detection with photo attachments.
+- **Hardware Health**: GPU Junction Temp (>75°C) and GPU Power (>150W) warnings.
+- **Infrastructure**: Host CPU load (>70%), Low Disk Space (<20%), and Service outages.
+- **Connectivity**: Real-time push notifications delivered via a secure public tunnel—no VPN required.
 
 ---
 
