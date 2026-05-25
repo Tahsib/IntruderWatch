@@ -121,7 +121,7 @@
       },
       "gridPos": { "h": 5, "w": 4, "x": 12, "y": 6 }, "id": 3,
       "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true },
-      "targets": [ { "expr": "gpu_gfx_activity", "refId": "A" } ],
+      "targets": [ { "expr": "max by (instance, gpu_id) (gpu_gfx_activity)", "refId": "A" } ],
       "title": "GPU Activity", "type": "gauge"
     },
     {
