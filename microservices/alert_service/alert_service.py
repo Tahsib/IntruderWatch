@@ -56,10 +56,19 @@ app = Flask(__name__)
 @app.route("/webhook", methods=["POST"])
 def webhook():
     """Receives JSON alerts from Alertmanager and sends clean ntfy messages."""
+    # Whitelist of allowed ntfy topics for security
+    ALLOWED_TOPICS = ["intruder-alerts", "infra-alerts", "hardware-alerts"]
+
     try:
         data = request.json
         if not data:
             return jsonify({"error": "No JSON data"}), 400
+
+        # Determine the ntfy topic based on Alertmanager's target
+        topic = request.args.get("topic", "infra-alerts")
+        if topic not in ALLOWED_TOPICS:
+            logging.warning(f"Unauthorized topic requested: {topic}")
+            return jsonify({"error": "Invalid topic"}), 403
 
         # Alertmanager sends multiple alerts in one POST
         for alert in data.get("alerts", []):
@@ -68,13 +77,9 @@ def webhook():
             severity = alert.get("labels", {}).get("severity", "warning")
             status = alert.get("status", "firing")
 
-            # Determine the ntfy topic based on Alertmanager's target
-            # Note: Alertmanager config will point to specific paths e.g. /webhook?topic=infra-alerts
-            topic = request.args.get("topic", "infra-alerts")
             url = f"{NTFY_INTERNAL_URL}/{topic}"
 
             # Format the clean message
-            # status: firing -> 🚨, resolved -> ✅
             icon = "🚨 " if status == "firing" else "✅ "
             message = f"{icon}{summary}"
 
@@ -95,14 +100,17 @@ def webhook():
             response = requests.post(url, data=message, headers=headers, timeout=10)
             response.raise_for_status()
 
-            logging.info(f"Clean alert sent to ntfy/{topic}: {message}")
+            # Sanitize message for logging to prevent log injection
+            safe_message = message.replace("\n", " ").replace("\r", "")
+            logging.info(f"Clean alert sent to ntfy/{topic}: {safe_message}")
             NOTIFICATIONS_SENT.labels(type="ntfy_text", destination=topic).inc()
 
         return jsonify({"status": "ok"}), 200
 
     except Exception as e:
         logging.error(f"Webhook processing error: {e}")
-        return jsonify({"error": str(e)}), 500
+        # Return generic message to avoid information exposure
+        return jsonify({"error": "Internal server error"}), 500
 
 
 def run_webhook_server():
