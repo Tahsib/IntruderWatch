@@ -100,7 +100,19 @@ def webhook():
                 priority = "5" if severity == "critical" else "3"
             else:
                 icon = "✅ "
-                message = f"{icon}RESOLVED: {alertname}"
+                # Descriptive resolution messages
+                resolution_messages = {
+                    "GPUTempHigh": "GPU Temperature stabilized (< 75°C)",
+                    "GPUPowerHigh": "GPU Power usage normalized",
+                    "ServiceDown": f"Service {alert.get('labels', {}).get('job', 'unknown')} is back online",
+                    "RabbitMQBacklog": "Queue backlog has been cleared",
+                    "HostHighCPU": "CPU usage has normalized",
+                    "HostLowDiskSpace": "Disk space issue resolved",
+                }
+                detail = resolution_messages.get(
+                    alertname, f"{alertname} condition cleared"
+                )
+                message = f"{icon}RESOLVED: {detail}"
                 tag = "white_check_mark"
                 priority = "1"
 
