@@ -161,6 +161,7 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
                             pipe.kill()
                             pipe.wait(timeout=1)
                         except Exception:
+                            # Silencing pipe cleanup errors as they are non-critical during stream reset
                             pass
                         pipe = None
                         ffmpeg_running = False
@@ -248,6 +249,7 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
                             pipe.kill()
                             pipe.wait(timeout=1)
                         except Exception:
+                            # Silencing pipe cleanup errors
                             pass
                         pipe = None
                         ffmpeg_running = False
@@ -267,6 +269,7 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
                 try:
                     mq_connection.close()
                 except Exception:
+                    # Silencing RabbitMQ closure errors during shutdown
                     pass
 
 

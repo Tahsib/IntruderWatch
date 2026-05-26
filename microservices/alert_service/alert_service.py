@@ -162,11 +162,15 @@ def send_call_alert(client, to_phone_number):
         logging.info(
             f"Call alert sent to {mask_phone(to_phone_number)}. SID: {call.sid}"
         )
-        NOTIFICATIONS_SENT.labels(type="twilio_call", destination=to_phone_number).inc()
+        NOTIFICATIONS_SENT.labels(
+            type="twilio_call", destination=mask_phone(to_phone_number)
+        ).inc()
     except Exception as e:
-        logging.error(f"Failed to send call to {mask_phone(to_phone_number)}: {e}")
+        logging.error(f"Failed to send call to {mask_phone(to_phone_number)}.")
         NOTIFICATION_ERRORS.labels(
-            type="twilio_call", destination=to_phone_number, error_type=type(e).__name__
+            type="twilio_call",
+            destination=mask_phone(to_phone_number),
+            error_type=type(e).__name__,
         ).inc()
 
 
@@ -214,7 +218,7 @@ def send_ntfy_photo(camera_id, timestamp, filename):
         )
         NOTIFICATIONS_SENT.labels(type="ntfy_photo", destination=camera_id).inc()
     except Exception as e:
-        logging.error(f"Failed to send ntfy photo link for Cam {camera_id}: {e}")
+        logging.error(f"Failed to send ntfy photo link for Cam {camera_id}.")
         NOTIFICATION_ERRORS.labels(
             type="ntfy_photo", destination=camera_id, error_type=type(e).__name__
         ).inc()

@@ -107,7 +107,9 @@ async def get_cameras():
 @app.get("/api/cameras/{camera}/dates", dependencies=[Depends(verify_credentials)])
 async def get_dates(camera: str):
     """List date folders for a camera, sorted descending (newest first)."""
-    camera_path = CAPTURES_DIR / camera
+    camera_path = (CAPTURES_DIR / camera).resolve()
+    if not str(camera_path).startswith(str(CAPTURES_DIR.resolve())):
+        return []
 
     if not camera_path.exists():
         return []
@@ -123,7 +125,9 @@ async def get_dates(camera: str):
 )
 async def get_images(camera: str, date: str):
     """List image filenames for a camera/date."""
-    date_path = CAPTURES_DIR / camera / date
+    date_path = (CAPTURES_DIR / camera / date).resolve()
+    if not str(date_path).startswith(str(CAPTURES_DIR.resolve())):
+        return []
 
     if not date_path.exists():
         return []
@@ -190,10 +194,10 @@ async def serve_image(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        logging.error(f"Error validating path: {e}")
+        logging.error("Error validating path while serving image.")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid path request"
         )
 
     IMAGES_SERVED_TOTAL.inc()
-    return FileResponse(image_path)
+    return FileResponse((CAPTURES_DIR / camera / date / filename).resolve())

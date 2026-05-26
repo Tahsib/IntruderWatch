@@ -41,13 +41,13 @@ def send_alert(message, to_phone_number):
 def call_alert(message, to_phone_number):
     client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
-    call = client.calls.create(
+    client.calls.create(
         url="http://demo.twilio.com/docs/voice.xml",
         to=to_phone_number,
         from_=TWILIO_PHONE_NUMBER,
     )
 
-    print(call.sid)
+    # print(call.sid)
 
 
 # Load the MobileNet-SSD model
@@ -116,8 +116,11 @@ def capture_stream(
     to_phone_numbers,
 ):
     rtsp_url = f"rtsp://{ip}:554/user={username}&password={password}&channel={channel}&stream={stream}.sdp"
-    logging.info(f"Attempting to connect to: {rtsp_url}")
-
+    # Mask password for logging to avoid security alerts
+    safe_password = "*" * len(str(password)) if password else "None"
+    logging.info(
+        f"Attempting to connect to stream for user: {username} (PW: {safe_password})"
+    )
     if not os.path.exists("captures"):
         os.makedirs("captures")
 
@@ -181,10 +184,6 @@ def capture_stream(
                         cv2.imwrite(filename, processed_frame)
                         logging.info(f"Saved detection frame to {filename}")
 
-                    # Break the loop on 'q' key press
-                    # key = cv2.waitKey(1) & 0xFF
-                    # if key == ord('q'):
-                    #     break
                 else:
                     logging.error("Lost connection. Attempting to reconnect...")
                     cap = cv2.VideoCapture(rtsp_url)
