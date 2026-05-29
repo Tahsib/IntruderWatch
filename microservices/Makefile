@@ -10,3 +10,6 @@ restart-monitoring:
 	docker-compose stop prometheus grafana
 	docker-compose rm -f prometheus grafana
 	docker-compose up -d --force-recreate prometheus grafana
+
+reset-prometheus:
+	./fix_prometheus_data.sh
