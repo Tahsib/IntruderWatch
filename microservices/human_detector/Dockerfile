@@ -28,8 +28,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 COPY shared/ ./shared/
 COPY human_detector/ .
 
-# Pre-download YOLO11m model (Medium model for the best balance of speed and accuracy)
-RUN python3 -c "from ultralytics import YOLO; YOLO('yolo11m.pt')" \
+# Pre-download YOLO11l model (Large model for better accuracy and fewer false positives)
+RUN python3 -c "from ultralytics import YOLO; YOLO('yolo11l.pt')" \
     && mkdir -p /tmp/.ultralytics \
     && chmod -R 777 /tmp/.ultralytics
 
