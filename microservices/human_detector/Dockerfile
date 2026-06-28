@@ -1,9 +1,10 @@
 # Use official AMD ROCm PyTorch image as base
-FROM rocm/pytorch:latest
+FROM rocm/pytorch:latest@sha256:4449f856653602317e4101a76fce599c7fcd58ccec2e539951fce5f73083179e
 
 WORKDIR /app
 
 # Install system dependencies for OpenCV and other tools
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
     libglib2.0-0 \
@@ -15,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install Python dependencies
 # Using the pre-installed torch/torchvision in the ROCm image
 COPY human_detector/requirements.txt .
+# hadolint ignore=DL3013
 RUN pip install --no-cache-dir ultralytics pika prometheus-client
 
 # Environment variables for ROCm and YOLO
