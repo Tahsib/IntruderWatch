@@ -167,18 +167,17 @@ def send_call_alert(client, recipient):
         phone_id = "configured_phone"
 
     try:
-        # codeql[py/clear-text-logging-sensitive-data]
-        call = client.calls.create(
+        client.calls.create(
             url="http://demo.twilio.com/docs/voice.xml",
             to=recipient,
             from_=TWILIO_FROM,
         )
-        # codeql[py/clear-text-logging-sensitive-data]
-        logging.info(f"Call alert sent to {mask_phone(recipient)}. SID: {call.sid}")
+        logging.info(f"Call alert sent (destination={phone_id})")
         NOTIFICATIONS_SENT.labels(type="twilio_call", destination=phone_id).inc()
     except Exception as e:
-        # codeql[py/clear-text-logging-sensitive-data]
-        logging.error(f"Failed to send call to {mask_phone(recipient)}: {e}")
+        logging.error(
+            f"Failed to send call alert (destination={phone_id}, error_type={type(e).__name__})"
+        )
         NOTIFICATION_ERRORS.labels(
             type="twilio_call", destination=phone_id, error_type=type(e).__name__
         ).inc()
