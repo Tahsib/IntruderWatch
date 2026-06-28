@@ -28,13 +28,21 @@ def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
     return credentials.username
 
 
+def validate_path_param(value: str, name: str = "parameter"):
+    """Validates that a path parameter contains no directory traversal sequences."""
+    if not value:
+        raise HTTPException(status_code=400, detail=f"Empty {name}")
+    if ".." in value or "/" in value or "\\" in value:
+        raise HTTPException(status_code=400, detail=f"Invalid character in {name}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Start Prometheus metrics server
     try:
         start_http_server(8003)
-    except Exception:
-        pass
+    except Exception as e:
+        logging.error(f"Failed to start Prometheus metrics: {e}")
     yield
 
 
@@ -107,6 +115,7 @@ async def get_cameras():
 @app.get("/api/cameras/{camera}/dates", dependencies=[Depends(verify_credentials)])
 async def get_dates(camera: str):
     """List date folders for a camera, sorted descending (newest first)."""
+    validate_path_param(camera, "camera")
     camera_path = CAPTURES_DIR / camera
 
     if not camera_path.exists():
@@ -123,6 +132,8 @@ async def get_dates(camera: str):
 )
 async def get_images(camera: str, date: str):
     """List image filenames for a camera/date."""
+    validate_path_param(camera, "camera")
+    validate_path_param(date, "date")
     date_path = CAPTURES_DIR / camera / date
 
     if not date_path.exists():
@@ -146,6 +157,9 @@ async def serve_image(
     camera: str, date: str, filename: str, token: str = None, request: Request = None
 ):
     """Serve image file. Supports Basic Auth OR a valid Alert Bypass Token."""
+    validate_path_param(camera, "camera")
+    validate_path_param(date, "date")
+    validate_path_param(filename, "filename")
 
     # 1. Check for valid Bypass Token
     authenticated = False
@@ -166,7 +180,6 @@ async def serve_image(
             # security(request) parses the header and handles basic validation
             credentials = await security(request)
             verify_credentials(credentials)
-            authenticated = True
         except Exception as e:
             raise e
 
@@ -179,7 +192,7 @@ async def serve_image(
 
         # Check if the resolved path starts with the base captures directory
         if not str(image_path).startswith(str(base_path)):
-            logging.warning(f"Blocked potential path injection attempt: {image_path}")
+            logging.warning("Blocked potential path injection attempt.")
             raise HTTPException(
                 status_code=403, detail="Forbidden: Path traversal blocked"
             )

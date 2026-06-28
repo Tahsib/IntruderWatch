@@ -160,8 +160,8 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
                         try:
                             pipe.kill()
                             pipe.wait(timeout=1)
-                        except Exception:
-                            pass
+                        except Exception as kill_err:
+                            logger.warning(f"Failed to kill ffmpeg pipe: {kill_err}")
                         pipe = None
                         ffmpeg_running = False
                         break
@@ -247,8 +247,10 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
                         try:
                             pipe.kill()
                             pipe.wait(timeout=1)
-                        except Exception:
-                            pass
+                        except Exception as kill_err:
+                            logger.warning(
+                                f"Failed to kill ffmpeg pipe during schedule sleep: {kill_err}"
+                            )
                         pipe = None
                         ffmpeg_running = False
                         logger.info("Outside scheduled hours. Disconnected.")
@@ -266,8 +268,8 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
             if mq_connection:
                 try:
                     mq_connection.close()
-                except Exception:
-                    pass
+                except Exception as close_err:
+                    logger.warning(f"Failed to close RabbitMQ connection: {close_err}")
 
 
 if __name__ == "__main__":

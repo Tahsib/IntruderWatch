@@ -116,7 +116,9 @@ def capture_stream(
     to_phone_numbers,
 ):
     rtsp_url = f"rtsp://{ip}:554/user={username}&password={password}&channel={channel}&stream={stream}.sdp"
-    logging.info(f"Attempting to connect to: {rtsp_url}")
+    # Log a sanitized version of the RTSP URL to prevent password leakage
+    safe_rtsp_url = f"rtsp://{ip}:554/channel={channel}&stream={stream}.sdp"
+    logging.info(f"Attempting to connect to: {safe_rtsp_url}")
 
     if not os.path.exists("captures"):
         os.makedirs("captures")
@@ -164,7 +166,7 @@ def capture_stream(
                         for number in to_phone_numbers.split(":"):
                             # send_alert(f"Human detected in channel-{channel} at {timestamp}", number)
                             call_alert("Intruder detected!!", number)
-                            logging.info(f"Alert triggered for {mask_phone(number)}")
+                            logging.info("Voice call alert triggered.")
                         last_alert_time = current_time
 
                         date_only = timestamp.split()[0]
@@ -181,10 +183,7 @@ def capture_stream(
                         cv2.imwrite(filename, processed_frame)
                         logging.info(f"Saved detection frame to {filename}")
 
-                    # Break the loop on 'q' key press
-                    # key = cv2.waitKey(1) & 0xFF
-                    # if key == ord('q'):
-                    #     break
+                    pass
                 else:
                     logging.error("Lost connection. Attempting to reconnect...")
                     cap = cv2.VideoCapture(rtsp_url)
