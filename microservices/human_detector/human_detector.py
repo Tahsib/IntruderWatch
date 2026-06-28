@@ -257,8 +257,10 @@ def consume_frames(queue_name):
             ).inc()
             try:
                 ch.basic_ack(delivery_tag=method.delivery_tag)
-            except Exception:
-                pass
+            except Exception as ack_err:
+                logging.warning(
+                    f"Failed to basic_ack after processing error: {ack_err}"
+                )
 
     try:
         channel.basic_consume(
