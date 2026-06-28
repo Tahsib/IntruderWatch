@@ -41,8 +41,8 @@ NOTIFICATION_ERRORS = Counter(
 # Twilio Configuration
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
-ALERT_PHONE_NUMBERS = os.getenv("ALERT_PHONE_NUMBERS", "")
+TWILIO_FROM = os.getenv("TWILIO_PHONE_NUMBER")
+ALERT_RECIPIENTS = os.getenv("ALERT_PHONE_NUMBERS", "")
 ALERT_COOLDOWN = int(os.getenv("ALERT_COOLDOWN", "90"))
 ENABLE_CALL_ALERTS = os.getenv("ENABLE_CALL_ALERTS", "false").lower() == "true"
 
@@ -155,11 +155,11 @@ def mask_phone(phone):
     return "*" * (len(phone) - 4) + phone[-4:]
 
 
-def send_call_alert(client, to_phone_number):
-    # Determine the phone ID based on its order in ALERT_PHONE_NUMBERS
-    phone_list = [num.strip() for num in ALERT_PHONE_NUMBERS.split(":") if num.strip()]
+def send_call_alert(client, recipient):
+    # Determine the recipient ID based on its order in ALERT_RECIPIENTS
+    recipient_list = [num.strip() for num in ALERT_RECIPIENTS.split(":") if num.strip()]
     try:
-        phone_idx = phone_list.index(to_phone_number)
+        phone_idx = recipient_list.index(recipient)
         phone_id = f"phone_{phone_idx + 1}"
     except ValueError:
         phone_id = "configured_phone"
@@ -168,20 +168,24 @@ def send_call_alert(client, to_phone_number):
         # codeql[py/clear-text-logging-sensitive-data]
         call = client.calls.create(
             url="http://demo.twilio.com/docs/voice.xml",
-            to=to_phone_number,
-            from_=TWILIO_PHONE_NUMBER,
+            to=recipient,
+            from_=TWILIO_FROM,
         )
         # codeql[py/clear-text-logging-sensitive-data]
-        logging.info(
-            f"Call alert sent to {mask_phone(to_phone_number)}. SID: {call.sid}"
-        )
+        logging.info(f"Call alert sent to {mask_phone(recipient)}. SID: {call.sid}")
         NOTIFICATIONS_SENT.labels(type="twilio_call", destination=phone_id).inc()
     except Exception as e:
         # codeql[py/clear-text-logging-sensitive-data]
-        logging.error(f"Failed to send call to {mask_phone(to_phone_number)}: {e}")
+        logging.error(f"Failed to send call to {mask_phone(recipient)}: {e}")
         NOTIFICATION_ERRORS.labels(
             type="twilio_call", destination=phone_id, error_type=type(e).__name__
         ).inc()
+
+
+def _dispatch_calls(twilio_client, recipients):
+    for recipient in recipients.split(":"):
+        if recipient.strip():
+            send_call_alert(twilio_client, recipient.strip())
 
 
 def send_ntfy_photo(camera_id, timestamp, filename):
@@ -277,7 +281,7 @@ def alert_service(queue_name):
                 logging.info(f"Triggering voice call alert for Camera {camera_id}")
                 threading.Thread(
                     target=_dispatch_calls,
-                    args=(twilio_client, ALERT_PHONE_NUMBERS),
+                    args=(twilio_client, ALERT_RECIPIENTS),
                     daemon=True,
                 ).start()
             else:
