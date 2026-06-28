@@ -110,7 +110,7 @@ services:
     environment:
       LOG_LEVEL: INFO
       INFERENCE_SIZE: 1280
-      DETECTION_CONFIDENCE: 0.8
+      DETECTION_CONFIDENCE: 0.83
       HSA_OVERRIDE_GFX_VERSION: "10.3.0"
       PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
       TRITON_CACHE_DIR: "/tmp/triton"
@@ -128,7 +128,7 @@ services:
       rabbitmq:
         condition: service_healthy
     deploy:
-      replicas: 2
+      replicas: 1
       resources:
         limits:
           cpus: "2.0"
