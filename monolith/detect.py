@@ -183,7 +183,6 @@ def capture_stream(
                         cv2.imwrite(filename, processed_frame)
                         logging.info(f"Saved detection frame to {filename}")
 
-                    pass
                 else:
                     logging.error("Lost connection. Attempting to reconnect...")
                     cap = cv2.VideoCapture(rtsp_url)
