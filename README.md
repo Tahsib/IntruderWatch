@@ -2,7 +2,7 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-IntruderWatch is an industry-grade, real-time intruder detection system optimized for high-end hardware (**Intel i7-12700K & AMD RX 6800 XT**). It leverages **YOLO11 Medium** for a perfect balance of surgical precision and thermal efficiency, alongside **AMD ROCm** for high-speed GPU-accelerated inference.
+IntruderWatch is an industry-grade, real-time intruder detection system optimized for high-end hardware (**Intel i7-12700K & AMD RX 6800 XT**). It leverages **YOLO11 Large (yolo11l.pt)** for a perfect balance of surgical precision and thermal efficiency, alongside **AMD ROCm** for high-speed GPU-accelerated FP16 inference.
 
 ## 🏗️ System Architecture
 
@@ -43,7 +43,7 @@ graph TD
 
     subgraph "AMD RX 6800 XT (GPU)"
         subgraph "Detection Inference (ROCm)"
-            DET[Detector Cluster: YOLO11 Medium]
+            DET[Detector Cluster: YOLO11 Large]
             BUF[High-Res Inference Buffer]
         end
     end
@@ -78,26 +78,26 @@ graph TD
 
 ## 🚀 Key Features (High Efficiency Mode)
 
-- **Core Inference Engine**: Upgraded to **YOLO11 Medium (v11m)** for elite accuracy with significantly reduced thermal impact.
-- **Hardware Accelerated**: Full **AMD GPU acceleration** via ROCm, enabling real-time high-resolution inference.
-- **Unified Alerting Stack**: Professional-grade monitoring using **Prometheus Alertmanager** and **ntfy** for instant, beautifully formatted notifications.
-- **Secure Remote Access**: Integrated **Cloudflare Tunnel** for encrypted, zero-port-forwarding access to camera feeds and alerts from anywhere.
-- **Real-Time Push**: Configured with upstream push servers for **instant mobile delivery** on iOS and Android.
-- **Motion Pre-Filtering**: Advanced **MSE (Mean Squared Error)** filtering on the CPU to ignore sensor noise and prevent redundant GPU work.
-- **High-Fidelity Source**: Captures at **1080P (1920x1080)** and processes at **1280px** inference resolution.
-- **Master Command Center**: Industry-standard **Grafana dashboard** with real-time GPU junction temperature and power draw monitoring.
+- **Core Inference Engine**: Powered by **YOLO11 Large (yolo11l.pt)** for high-precision human detection with minimum false positives.
+- **Hardware Accelerated**: Full **AMD GPU acceleration** via ROCm FP16 (Half-Precision) math, enabling high-throughput inference.
+- **Crash-Resilient Rate Limiting**: RabbitMQ native prefetch (`prefetch_count=1`) rate limiting to deliver 100% of detection frames to **ntfy** at a steady pace without app freezes.
+- **Unified Alerting Stack**: Multi-channel alerting supporting **ntfy** push notifications and **Twilio** voice call alerts with cooldown suppression.
+- **Secure Remote Access**: Integrated **Cloudflare Tunnel** for encrypted, zero-port-forwarding remote access to feeds and alerts.
+- **Motion Pre-Filtering**: Advanced **MSE (Mean Squared Error)** filtering on CPU to ignore noise and eliminate redundant GPU processing.
+- **High-Fidelity Source**: Captures at **1080P (1920x1080 @ 3 FPS)** and processes at **1600px** high-res inference resolution.
+- **Master Command Center**: Professional-grade **Grafana dashboard** with real-time GPU junction temperature, power draw, latency, and throughput metrics.
 
 ---
 
 ## 📂 Repository Structure
 
-**Microservices** (Current):
-- `microservices/frame_capturer/` - 1080P/6FPS RTSP capture via ffmpeg.
-- `microservices/human_detector/` - GPU-accelerated YOLO11L detection.
-- `microservices/alert_service/` - Unified notification engine with "Alert Beautifier" logic.
-- `microservices/viewer_service/` - FastAPI web UI for secure detection browsing.
-- `microservices/tunnel/` - Cloudflare Tunnel for secure remote access.
-- `microservices/grafana/` & `prometheus/` - 'Master Command Center' observability suite.
+**Microservices**:
+- `microservices/frame_capturer/` - 1080P/3FPS RTSP capture via ffmpeg with MSE motion filtering.
+- `microservices/human_detector/` - GPU-accelerated YOLO11 Large detection engine with deduplication & warm-up logic.
+- `microservices/alert_service/` - Notification engine with RabbitMQ native rate limiting, Twilio voice calls, and Alertmanager beautifier webhook.
+- `microservices/viewer_service/` - FastAPI web UI for secure visual audit and detection browsing.
+- `microservices/tunnel/` - Cloudflare Tunnel for secure public ingress (`watch.tahsib.dev`).
+- `microservices/grafana/` & `prometheus/` - Observability stack (Grafana, Prometheus, Loki, Promtail, cAdvisor, AMD GPU Exporter).
 
 ---
 
@@ -105,7 +105,7 @@ graph TD
 
 The system monitors more than just intruders. You receive real-time notifications for:
 
-- **Security**: Instant intruder detection with photo attachments.
+- **Security**: Instant intruder detection with snapshot photo attachments.
 - **Hardware Health**: GPU Junction Temp (>75°C) and GPU Power (>150W) warnings.
 - **Infrastructure**: Host CPU load (>70%), Low Disk Space (<20%), and Service outages.
 - **Connectivity**: Real-time push notifications delivered via a secure public tunnel—no VPN required.
@@ -131,10 +131,11 @@ The current deployment is tuned for:
 - **RAM**: 32GB DDR4
 
 ### Environment Variables (.env)
-- `STREAM_IP`, `STREAM_USERNAME`, `STREAM_PASSWORD` - Camera credentials.
-- `INFERENCE_SIZE` - Detection resolution (Default: **1280**).
+- `STREAM_IP`, `STREAM_USERNAME`, `STREAM_PASSWORD` - Camera network credentials.
+- `INFERENCE_SIZE` - Detection inference resolution (Default: **1600**).
 - `DETECTION_CONFIDENCE` - Confidence threshold (Default: **0.8**).
 - `FRAME_WIDTH`, `FRAME_HEIGHT` - Capture resolution (Default: **1920x1080**).
+- `FPS` - Frame capture extraction rate (Default: **3**).
 - `JPEG_QUALITY` - Image compression (Default: **85**).
 - `ALERT_COOLDOWN` - Voice call suppression window between phone alerts (Default: **120s**).
 - `NTFY_RATE_LIMIT_SEC` - System-wide rate-limit pacing for ntfy push notifications to prevent mobile app crashes (Default: **3.0s**).
@@ -162,9 +163,7 @@ The current deployment is tuned for:
 
 ## 💎 Optimization Highlights
 
-- **Multi-Stage Builds**: Docker images are built in stages to ensure the final runtime is lean and secure.
-- **Non-Root Execution**: All services run as a dedicated `appuser` for improved security posture.
-- **Aggressive Caching**: Model weights (`yolo11l.pt`) are pre-downloaded during build to ensure instant deployment.
-- **Resource Caps**: Precise CPU/RAM limits ensure the system stays stable without starving host resources.
-
----
+- **Multi-Stage Builds**: Docker images are built in stages to ensure runtime containers remain lean.
+- **Non-Root Execution**: Services run as dedicated unprivileged users for security compliance.
+- **Aggressive Caching**: Model weights (`yolo11l.pt`) are pre-cached during build to ensure instant deployment.
+- **Resource Caps**: Precise CPU/RAM limits ensure cluster stability without starving host resources.

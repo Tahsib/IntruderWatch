@@ -2,7 +2,7 @@
 
 ## Overview
 
-IntruderWatch is a high-performance intruder detection system designed as a distributed set of microservices orchestrated via RabbitMQ. It captures high-fidelity frames from RTSP security cameras, performs surgical human detection using GPU-accelerated **YOLO11 Medium**, dispatches multi-channel alerts (Twilio + ntfy), and provides a secure web-based interface for visual audit.
+IntruderWatch is a high-performance intruder detection system designed as a distributed set of microservices orchestrated via RabbitMQ. It captures high-fidelity frames from RTSP security cameras, performs surgical human detection using GPU-accelerated **YOLO11 Large (yolo11l.pt)**, dispatches multi-channel alerts (Twilio + ntfy), and provides a secure web-based interface for visual audit.
 
 The architecture is engineered for high-end hardware, leveraging an **Intel i7-12700K** for ingestion and an **AMD RX 6800 XT** (via ROCm) for real-time detection inference.
 
@@ -40,9 +40,9 @@ The architecture is engineered for high-end hardware, leveraging an **Intel i7-1
 **Purpose:** Runs deep learning models to identify human targets within motion-qualified frames.
 
 **Mechanism:**
-- Powered by **YOLO11 Medium** (PyTorch FP16 execution) via **AMD ROCm**.
+- Powered by **YOLO11 Large (yolo11l.pt)** (PyTorch FP16 execution) via **AMD ROCm**.
 - Consumes frame data directly from RabbitMQ (`frame_queue`).
-- Performs detection inference at `1280x1280` image resolution.
+- Performs detection inference at `1600x1600` image resolution (`INFERENCE_SIZE=1600`).
 - Filters predictions to target `class 0` (Person) with confidence $\ge 0.8$.
 - Draws bounding boxes and saves high-resolution audit images to volume storage.
 - Publishes lightweight alert payloads to RabbitMQ (`alert_queue`).
