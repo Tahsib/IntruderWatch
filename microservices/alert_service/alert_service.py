@@ -50,6 +50,8 @@ ENABLE_CALL_ALERTS = os.getenv("ENABLE_CALL_ALERTS", "false").lower() == "true"
 NTFY_BASE_URL = os.getenv("NTFY_BASE_URL", "http://localhost:8081")
 NTFY_INTERNAL_URL = os.getenv("NTFY_INTERNAL_URL", "http://ntfy")
 PUBLIC_DOMAIN = os.getenv("PUBLIC_DOMAIN", "yourdomain.com")
+# Rate limit for ntfy photo notifications (default max 1 notification per second per camera)
+NTFY_RATE_LIMIT_SEC = float(os.getenv("NTFY_RATE_LIMIT_SEC", "1.0"))
 # Mobile notifications use the secure public tunnel
 VIEWER_PUBLIC_URL = f"https://watch.{PUBLIC_DOMAIN}"
 # Bypass token for secure image viewing in ntfy app (renamed to avoid CodeQL token rules)
@@ -262,12 +264,11 @@ def alert_service(queue_name):
             f"!!! ALERT !!! Human detected on Camera {camera_id} at {timestamp}"
         )
 
-        # 1. Always dispatch ntfy photo alert immediately
-        threading.Thread(
-            target=send_ntfy_photo,
-            args=(camera_id, timestamp, filename),
-            daemon=True,
-        ).start()
+        # 1. Dispatch ntfy photo alert directly
+        try:
+            send_ntfy_photo(camera_id, timestamp, filename)
+        except Exception as e:
+            logging.error(f"Error sending ntfy photo for Cam {camera_id}: {e}")
 
         # 2. Dispatch Twilio call alert with cooldown
         if ENABLE_CALL_ALERTS:
@@ -285,13 +286,21 @@ def alert_service(queue_name):
                 )
                 ALERTS_SUPPRESSED.labels(camera_id=camera_id).inc()
 
+        # 3. Acknowledge message to RabbitMQ ONLY AFTER notification dispatch succeeds/attempts
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
+        # 4. Pace rate limit before consuming next message from RabbitMQ (Crash-Resilient)
+        time.sleep(NTFY_RATE_LIMIT_SEC)
+
     connection, channel = connect_rabbitmq(queue_name)
+    # Set prefetch count to 1 so RabbitMQ buffers all pending alerts on persistent disk/queue safely!
+    channel.basic_qos(prefetch_count=1)
     channel.basic_consume(
         queue=queue_name, on_message_callback=callback, auto_ack=False
     )
-    logging.info(f"Alert Service running. Cooldown: {ALERT_COOLDOWN}s")
+    logging.info(
+        f"Alert Service running. Voice Cooldown: {ALERT_COOLDOWN}s | RabbitMQ Native Rate Limit: {NTFY_RATE_LIMIT_SEC}s/frame (Crash-Resilient)"
+    )
     channel.start_consuming()
 
 
