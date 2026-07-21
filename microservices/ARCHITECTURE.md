@@ -22,41 +22,33 @@ The architecture is engineered for high-end hardware, leveraging an **Intel i7-1
 
 **Mechanism:**
 - Utilizes `ffmpeg` to interface with RTSP streams.
-- Extracts raw BGR24 frames at **4 FPS** (configurable), striking a balance between detection accuracy and thermal safety.
+- Extracts raw BGR24 frames at **3 FPS** (configurable), striking a balance between detection accuracy and thermal safety.
 - Performs **MSE-based Motion Filtering** to eliminate redundant processing of static frames (ignoring sensor grain/noise).
 - Encodes standardized frames as high-quality **JPEG (85%)**, significantly reducing broker bandwidth while maintaining evidence-grade detail.
 
 **Primary Configuration:**
 | Variable | Description | Default |
 |---|---|---|
-| `STREAM_IP` | Camera/NVR Network Address | - |
-| `CHANNEL` | Stream Channel Identifier | - |
-| `FPS` | Targeted Frame Rate | 4 |
-| `FRAME_WIDTH` | Capture Resolution (Width) | 1920 (1080P) |
-| `FRAME_HEIGHT` | Capture Resolution (Height) | 1080 (1080P) |
-| `JPEG_QUALITY` | Encoder Quality Profile | 85 |
-| `MOTION_THRESHOLD` | Sensitivity for MSE Filtering | 5.0 |
+| `FPS` | Targeted extraction frame rate | `3` |
+| `MOTION_THRESHOLD` | Sensitivity for MSE motion detection | `5.0` |
+| `JPEG_QUALITY` | Evidence compression level | `85` |
 
 ---
 
 ### 2. Core Inference Engine (`human_detector/`)
 
-**Purpose:** Executes deep learning-based object detection on high-resolution frame buffers.
+**Purpose:** Runs deep learning models to identify human targets within motion-qualified frames.
 
 **Mechanism:**
-- Deploys the **YOLO11 Medium** model, optimized for a perfect balance of speed and thermal efficiency.
-- Leverages **AMD ROCm** hardware acceleration on the RX 6800 XT.
-- Employs **FP16 (Half-Precision)** math to double inference throughput and reduce VRAM bandwidth pressure.
-- Implements **Serialized GPU Warm-up** to ensure driver stability during multi-replica initialization.
-- **Decision Logic:**
-  - Performs spatial detection for human classes.
-  - Persists annotated evidence frames to secure storage.
-  - Publishes detection events to the notification exchange.
+- Powered by **YOLO11 Medium** (PyTorch FP16 execution) via **AMD ROCm**.
+- Consumes frame data directly from RabbitMQ (`frame_queue`).
+- Performs detection inference at `1280x1280` image resolution.
+- Filters predictions to target `class 0` (Person) with confidence $\ge 0.8$.
+- Draws bounding boxes and saves high-resolution audit images to volume storage.
+- Publishes lightweight alert payloads to RabbitMQ (`alert_queue`).
 
-**Hardware Specifications:**
-- **Inference Resolution**: 1280px (Standardized high-fidelity input).
-- **Math Precision**: FP16 (Half-precision).
-- **Concurrency**: 2 Replicas (Optimized for thermal stability and high-end gaming headroom).
+**Resource Allocations:**
+- **VRAM Target**: $\approx 4\text{GB}$ VRAM on AMD RX 6800 XT.
 - **Memory Profile**: 6GB RAM per cluster.
 
 ---
@@ -66,11 +58,12 @@ The architecture is engineered for high-end hardware, leveraging an **Intel i7-1
 **Purpose:** Manages asynchronous delivery of security alerts across multiple urgent and visual channels.
 
 **Mechanism:**
-- Consumes events from the centralized RabbitMQ alert exchange.
+- Consumes events from the centralized RabbitMQ `alert_queue`.
 - **Redundant Dispatch:**
   - **Urgent:** Triggers async phone calls via Twilio API.
   - **Visual:** Delivers high-res detection images via self-hosted **ntfy** topics.
-- **Suppression Logic:** Enforces a **90s global cooldown** to prevent notification fatigue during ongoing incidents.
+- **Crash-Resilient Rate Limiting:** Uses RabbitMQ native `prefetch_count=1` with delayed ACKs and `NTFY_RATE_LIMIT_SEC` (default: **3.0s**) to deliver 100% of captured frames to the ntfy app at a steady pace without app lockup or frame loss on container restart.
+- **Suppression Logic:** Enforces an `ALERT_COOLDOWN` (default: **120s**) for voice call alerts to prevent phone spam.
 
 ---
 

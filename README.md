@@ -136,7 +136,8 @@ The current deployment is tuned for:
 - `DETECTION_CONFIDENCE` - Confidence threshold (Default: **0.8**).
 - `FRAME_WIDTH`, `FRAME_HEIGHT` - Capture resolution (Default: **1920x1080**).
 - `JPEG_QUALITY` - Image compression (Default: **85**).
-- `ALERT_COOLDOWN` - Suppression window between notifications (Default: **90s**).
+- `ALERT_COOLDOWN` - Voice call suppression window between phone alerts (Default: **120s**).
+- `NTFY_RATE_LIMIT_SEC` - System-wide rate-limit pacing for ntfy push notifications to prevent mobile app crashes (Default: **3.0s**).
 
 ---
 
