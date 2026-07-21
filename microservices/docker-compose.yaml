@@ -146,6 +146,7 @@ services:
     environment:
       NTFY_BASE_URL: ${NTFY_BASE_URL:-http://localhost:8081}
       NTFY_INTERNAL_URL: ${NTFY_INTERNAL_URL:-http://ntfy}
+      NTFY_RATE_LIMIT_SEC: ${NTFY_RATE_LIMIT_SEC:-1.0}
       VIEWER_BASE_URL: ${VIEWER_BASE_URL}
       PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:-tahsib.dev}
       ALERT_BYPASS_TOKEN: ${ALERT_BYPASS_TOKEN}
