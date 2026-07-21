@@ -12,7 +12,7 @@ x-frame-capturer: &frame-capturer
     SUBTYPE: 0
     FRAME_WIDTH: 1920
     FRAME_HEIGHT: 1080
-    FPS: 4
+    FPS: 3
     LOG_LEVEL: INFO
     JPEG_QUALITY: 85
     FRAME_SLEEP: 0.05
