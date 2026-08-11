@@ -1,5 +1,5 @@
 # Use official AMD ROCm PyTorch image as base
-FROM rocm/pytorch:latest@sha256:4449f856653602317e4101a76fce599c7fcd58ccec2e539951fce5f73083179e
+FROM rocm/pytorch:latest@sha256:a3867e22ca44c458b1feda92026c6dc289e7e447093cf55914d1fd56ef6d7372
 
 WORKDIR /app
 
