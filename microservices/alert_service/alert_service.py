@@ -5,11 +5,18 @@ import threading
 import time
 
 import requests
+from requests.adapters import HTTPAdapter
 from flask import Flask, jsonify, request
 from prometheus_client import Counter, start_http_server
 from twilio.rest import Client
 
 from shared.rabbitmq_client import connect_rabbitmq
+
+# Configure connection-pooled HTTP session for high-throughput alerts
+http_session = requests.Session()
+adapter = HTTPAdapter(pool_connections=20, pool_maxsize=50)
+http_session.mount("http://", adapter)
+http_session.mount("https://", adapter)
 
 # Configure logging
 logging.basicConfig(
@@ -113,6 +120,7 @@ def webhook():
                     "RabbitMQBacklog": "Queue backlog has been cleared",
                     "HostHighCPU": "CPU usage has normalized",
                     "HostLowDiskSpace": "Disk space issue resolved",
+                    "ContainerCPUThrottling": f"Container {alert.get('labels', {}).get('name', 'unknown')} CPU throttling resolved",
                 }
                 detail = resolution_messages.get(
                     alertname, f"{alertname} condition cleared"
@@ -128,7 +136,7 @@ def webhook():
             }
 
             # Send clean text body to ntfy
-            response = requests.post(url, data=message, headers=headers, timeout=10)
+            response = http_session.post(url, data=message, headers=headers, timeout=10)
             response.raise_for_status()
 
             # Aggressive sanitization for logging
@@ -224,7 +232,7 @@ def send_ntfy_photo(camera_id, timestamp, filename):
         }
 
         # Simple POST with headers is best for URL-based attachments
-        response = requests.post(url, headers=headers, timeout=15)
+        response = http_session.post(url, headers=headers, timeout=15)
         response.raise_for_status()
 
         logging.info(
@@ -288,6 +296,7 @@ def alert_service(queue_name):
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     connection, channel = connect_rabbitmq(queue_name)
+    channel.basic_qos(prefetch_count=20)
     channel.basic_consume(
         queue=queue_name, on_message_callback=callback, auto_ack=False
     )

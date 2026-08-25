@@ -44,6 +44,14 @@ groups:
         annotations:
           summary: "CPU Usage: {{ $value | printf \"%.0f\" }}%"
 
+      - alert: ContainerCPUThrottling
+        expr: (rate(container_cpu_cfs_throttled_periods_total{name=~".+"}[5m]) / rate(container_cpu_cfs_periods_total{name=~".+"}[5m])) * 100 > 25
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} is CPU throttled: {{ $value | printf \"%.0f\" }}%"
+
       - alert: HostLowDiskSpace
         expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 20
         for: 5m
