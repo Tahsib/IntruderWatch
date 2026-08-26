@@ -230,7 +230,7 @@
     {
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "fieldConfig": { "defaults": { "unit": "decbytes" } },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 44 }, "id": 31,
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 44 }, "id": 31,
       "options": { "legend": { "displayMode": "table", "placement": "right" } },
       "targets": [ { "expr": "container_memory_usage_bytes{container_label_com_docker_compose_service!=\"\", container_label_com_docker_compose_service!~\"prometheus|grafana|cadvisor|node_exporter|amd_gpu_exporter\"}", "legendFormat": "{{container_label_com_docker_compose_service}}", "refId": "A" } ],
       "title": "Microservice RAM Usage", "type": "timeseries"
@@ -238,10 +238,32 @@
     {
       "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
       "fieldConfig": { "defaults": { "unit": "percent" } },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 44 }, "id": 32,
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 44 }, "id": 32,
       "options": { "legend": { "displayMode": "table", "placement": "right" } },
       "targets": [ { "expr": "rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service!=\"\", container_label_com_docker_compose_service!~\"prometheus|grafana|cadvisor|node_exporter|amd_gpu_exporter\"}[1m]) * 100", "legendFormat": "{{container_label_com_docker_compose_service}}", "refId": "A" } ],
       "title": "Microservice CPU Load", "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 15, "lineInterpolation": "smooth", "lineWidth": 2 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 10 },
+              { "color": "red", "value": 25 }
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 44 }, "id": 33,
+      "options": { "legend": { "displayMode": "table", "placement": "right" }, "tooltip": { "mode": "multi" } },
+      "targets": [ { "expr": "(rate(container_cpu_cfs_throttled_periods_total{container_label_com_docker_compose_service!=\"\", container_label_com_docker_compose_service!~\"prometheus|grafana|cadvisor|node_exporter|amd_gpu_exporter\"}[1m]) / rate(container_cpu_cfs_periods_total{container_label_com_docker_compose_service!=\"\", container_label_com_docker_compose_service!~\"prometheus|grafana|cadvisor|node_exporter|amd_gpu_exporter\"}[1m])) * 100", "legendFormat": "{{container_label_com_docker_compose_service}}", "refId": "A" } ],
+      "title": "Microservice CPU Throttling", "type": "timeseries"
     },
     {
       "collapsed": true, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 52 },

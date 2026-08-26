@@ -1,19 +1,20 @@
+import base64
+import gc
+import hashlib
+import json
+import logging
+import os
+import socket
+import threading
+import time
+from datetime import datetime
+
 import cv2
 import numpy as np
-import time
-import os
-import logging
-import hashlib
-import base64
-import json
-import socket
-import gc
-import threading
 import torch
-from datetime import datetime
-from ultralytics import YOLO
+from prometheus_client import Counter, Gauge, Histogram, start_http_server
 from shared.rabbitmq_client import connect_rabbitmq
-from prometheus_client import start_http_server, Counter, Histogram, Gauge
+from ultralytics import YOLO
 
 # Get the container hostname
 INSTANCE_ID = socket.gethostname()
@@ -110,8 +111,10 @@ def consume_frames(queue_name):
     # Start the memory manager thread
     threading.Thread(target=memory_manager, args=(state,), daemon=True).start()
 
-    # Load model once - Using YOLO11 LARGE for better accuracy and fewer false positives
-    model = YOLO("yolo11l.pt")
+    # Load model - Configurable via YOLO_MODEL env var (defaults to YOLO11 Medium)
+    yolo_model_name = os.getenv("YOLO_MODEL", "yolo11m.pt")
+    logging.info(f"Loading YOLO model: {yolo_model_name}")
+    model = YOLO(yolo_model_name)
     connection, channel = connect_rabbitmq(["frame_queue", "alert_queue"])
     channel.basic_qos(prefetch_count=1)
 
@@ -131,24 +134,18 @@ def consume_frames(queue_name):
             current_count = camera_warmup.get(camera_id, 0)
             if current_count < WARMUP_LIMIT:
                 camera_warmup[camera_id] = current_count + 1
-                logging.debug(
-                    f"Warming up Cam {camera_id}: skipping frame {camera_warmup[camera_id]}/{WARMUP_LIMIT}"
-                )
+                logging.debug(f"Warming up Cam {camera_id}: skipping frame {camera_warmup[camera_id]}/{WARMUP_LIMIT}")
                 ch.basic_ack(delivery_tag=method.delivery_tag)
                 return
 
             state.frame_counter += 1
             if state.frame_counter % 100 == 0:
                 elapsed = time.time() - state.start_time
-                logging.info(
-                    f"Heartbeat: Processed {state.frame_counter} frames. Uptime: {int(elapsed)}s."
-                )
+                logging.info(f"Heartbeat: Processed {state.frame_counter} frames. Uptime: {int(elapsed)}s.")
 
             # Deduplication
             if last_saved_hashes.get(camera_id) == expected_hash:
-                logging.debug(
-                    f"Skipping duplicate {expected_hash[:8]} (Cam {camera_id})"
-                )
+                logging.debug(f"Skipping duplicate {expected_hash[:8]} (Cam {camera_id})")
                 ch.basic_ack(delivery_tag=method.delivery_tag)
                 return
 
@@ -180,9 +177,7 @@ def consume_frames(queue_name):
                 ch.basic_ack(delivery_tag=method.delivery_tag)
                 return
 
-            with PROCESSING_TIME.labels(
-                camera_id=camera_id, worker_id=INSTANCE_ID
-            ).time():
+            with PROCESSING_TIME.labels(camera_id=camera_id, worker_id=INSTANCE_ID).time():
                 with ACTIVE_PROCESSING.labels(worker_id=INSTANCE_ID).track_inprogress():
                     # Optimized inference: INFERENCE_SIZE (1280) on GPU (device=0)
                     # Using half=True (FP16) to double speed and prevent GPU hangs
@@ -201,9 +196,7 @@ def consume_frames(queue_name):
                         human_detected = True
                         x1, y1, x2, y2 = box.xyxy[0].int().tolist()
                         conf = box.conf[0].item()
-                        logging.debug(
-                            f"Human detected: Box = ({x1}, {y1}, {x2}, {y2}), Conf = {conf:.4f}"
-                        )
+                        logging.debug(f"Human detected: Box = ({x1}, {y1}, {x2}, {y2}), Conf = {conf:.4f}")
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
                     if human_detected:
@@ -212,16 +205,12 @@ def consume_frames(queue_name):
                         timestamp = timestamp_dt.strftime("%Y-%m-%d %H:%M:%S.%f")
 
                         date_only = timestamp.split()[0]
-                        detection_dir = os.path.join(
-                            f"/app/captures/camera_{camera_id}", date_only
-                        )
+                        detection_dir = os.path.join(f"/app/captures/camera_{camera_id}", date_only)
                         os.makedirs(detection_dir, exist_ok=True)
 
                         # Save as JPEG (faster and smaller than PNG)
                         filename = f"{detection_dir}/det_{timestamp}_{expected_hash[:8]}_{INSTANCE_ID[:6]}.jpg"
-                        success = cv2.imwrite(
-                            filename, frame, [cv2.IMWRITE_JPEG_QUALITY, SAVE_QUALITY]
-                        )
+                        success = cv2.imwrite(filename, frame, [cv2.IMWRITE_JPEG_QUALITY, SAVE_QUALITY])
 
                         # Add filename to payload for the alert service
                         alert_payload = json.dumps(
@@ -231,41 +220,27 @@ def consume_frames(queue_name):
                                 "filename": filename,
                             }
                         )
-                        channel.basic_publish(
-                            exchange="", routing_key="alert_queue", body=alert_payload
-                        )
-                        HUMANS_DETECTED.labels(
-                            camera_id=camera_id, worker_id=INSTANCE_ID
-                        ).inc(len(results.boxes))
+                        channel.basic_publish(exchange="", routing_key="alert_queue", body=alert_payload)
+                        HUMANS_DETECTED.labels(camera_id=camera_id, worker_id=INSTANCE_ID).inc(len(results.boxes))
 
                         if success:
-                            logging.info(
-                                f"*** HUMAN DETECTED (Cam {camera_id}) *** Saved to {filename}"
-                            )
+                            logging.info(f"*** HUMAN DETECTED (Cam {camera_id}) *** Saved to {filename}")
                         else:
-                            logging.error(
-                                f"Failed to save detection for camera {camera_id}"
-                            )
+                            logging.error(f"Failed to save detection for camera {camera_id}")
 
             FRAMES_PROCESSED.labels(camera_id=camera_id, worker_id=INSTANCE_ID).inc()
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
         except Exception as e:
             logging.error(f"Error processing frame: {e}")
-            ERRORS_TOTAL.labels(
-                camera_id=camera_id, worker_id=INSTANCE_ID, error_type="exception"
-            ).inc()
+            ERRORS_TOTAL.labels(camera_id=camera_id, worker_id=INSTANCE_ID, error_type="exception").inc()
             try:
                 ch.basic_ack(delivery_tag=method.delivery_tag)
             except Exception as ack_err:
-                logging.warning(
-                    f"Failed to basic_ack after processing error: {ack_err}"
-                )
+                logging.warning(f"Failed to basic_ack after processing error: {ack_err}")
 
     try:
-        channel.basic_consume(
-            queue=queue_name, on_message_callback=callback, auto_ack=False
-        )
+        channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=False)
         logging.info("Human detector waiting for frames...")
         channel.start_consuming()
     except Exception as e:

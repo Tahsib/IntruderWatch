@@ -109,8 +109,9 @@ services:
       - .env
     environment:
       LOG_LEVEL: INFO
-      INFERENCE_SIZE: 1280
-      DETECTION_CONFIDENCE: 0.83
+      YOLO_MODEL: ${YOLO_MODEL:-yolo11m.pt}
+      INFERENCE_SIZE: ${INFERENCE_SIZE:-1280}
+      DETECTION_CONFIDENCE: ${DETECTION_CONFIDENCE:-0.70}
       HSA_OVERRIDE_GFX_VERSION: "10.3.0"
       PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
       TRITON_CACHE_DIR: "/tmp/triton"
@@ -128,7 +129,7 @@ services:
       rabbitmq:
         condition: service_healthy
     deploy:
-      replicas: 1
+      replicas: 2
       resources:
         limits:
           cpus: "2.0"
@@ -158,8 +159,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.10"
-          memory: 64M
+          cpus: "1.0"
+          memory: 256M
     networks:
       - detection
 
