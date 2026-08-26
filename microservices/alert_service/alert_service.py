@@ -23,6 +23,7 @@ logging.basicConfig(
     format="%(asctime)s [alert_service] [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+logging.getLogger("pika").setLevel(logging.WARNING)
 
 # Prometheus Metrics
 ALERTS_TOTAL = Counter("alert_service_alerts_total", "Total alerts received from queue", ["camera_id"])

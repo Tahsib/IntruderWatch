@@ -34,6 +34,7 @@ logging.basicConfig(
     format=f"%(asctime)s [detector:{INSTANCE_ID[:6]}] [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+logging.getLogger("pika").setLevel(logging.WARNING)
 
 # Prometheus Metrics
 FRAMES_PROCESSED = Counter(
