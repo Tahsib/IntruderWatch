@@ -1,13 +1,14 @@
+import logging
 import os
 import secrets
 import time
-import logging
-from pathlib import Path
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, Depends, HTTPException, status
+from pathlib import Path
+
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from prometheus_client import start_http_server, Counter, Histogram
+from prometheus_client import Counter, Histogram, start_http_server
 
 # Auth Configuration
 security = HTTPBasic()
@@ -54,12 +55,8 @@ HTTP_REQUESTS_TOTAL = Counter(
     "Total HTTP requests",
     ["method", "endpoint", "status_code"],
 )
-REQUEST_LATENCY = Histogram(
-    "viewer_service_http_request_duration_seconds", "HTTP request latency", ["endpoint"]
-)
-IMAGES_SERVED_TOTAL = Counter(
-    "viewer_service_images_served_total", "Total images served"
-)
+REQUEST_LATENCY = Histogram("viewer_service_http_request_duration_seconds", "HTTP request latency", ["endpoint"])
+IMAGES_SERVED_TOTAL = Counter("viewer_service_images_served_total", "Total images served")
 
 
 @app.middleware("http")
@@ -79,9 +76,7 @@ async def monitor_requests(request: Request, call_next):
         elif len(parts) == 6:
             endpoint = "/api/cameras/{camera}/dates/{date}/images"
 
-    HTTP_REQUESTS_TOTAL.labels(
-        method=request.method, endpoint=endpoint, status_code=str(response.status_code)
-    ).inc()
+    HTTP_REQUESTS_TOTAL.labels(method=request.method, endpoint=endpoint, status_code=str(response.status_code)).inc()
     REQUEST_LATENCY.labels(endpoint=endpoint).observe(duration)
 
     return response
@@ -102,13 +97,7 @@ async def get_cameras():
     if not CAPTURES_DIR.exists():
         return []
 
-    cameras = sorted(
-        [
-            d.name
-            for d in CAPTURES_DIR.iterdir()
-            if d.is_dir() and d.name.startswith("camera_")
-        ]
-    )
+    cameras = sorted([d.name for d in CAPTURES_DIR.iterdir() if d.is_dir() and d.name.startswith("camera_")])
     return cameras
 
 
@@ -140,11 +129,7 @@ async def get_images(camera: str, date: str):
         return []
 
     # Get all image files with their modification times
-    image_files = [
-        f
-        for f in date_path.iterdir()
-        if f.is_file() and f.suffix.lower() in [".png", ".jpg", ".jpeg"]
-    ]
+    image_files = [f for f in date_path.iterdir() if f.is_file() and f.suffix.lower() in [".png", ".jpg", ".jpeg"]]
 
     # Sort by modification time descending (newest first)
     image_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
@@ -153,9 +138,7 @@ async def get_images(camera: str, date: str):
 
 
 @app.get("/images/{camera}/{date}/{filename}")
-async def serve_image(
-    camera: str, date: str, filename: str, token: str = None, request: Request = None
-):
+async def serve_image(camera: str, date: str, filename: str, token: str = None, request: Request = None):
     """Serve image file. Supports Basic Auth OR a valid Alert Bypass Token."""
     validate_path_param(camera, "camera")
     validate_path_param(date, "date")
@@ -193,9 +176,7 @@ async def serve_image(
         # Check if the resolved path starts with the base captures directory
         if not str(image_path).startswith(str(base_path)):
             logging.warning("Blocked potential path injection attempt.")
-            raise HTTPException(
-                status_code=403, detail="Forbidden: Path traversal blocked"
-            )
+            raise HTTPException(status_code=403, detail="Forbidden: Path traversal blocked")
 
         if not image_path.exists() or not image_path.is_file():
             raise HTTPException(status_code=404, detail="Image not found")
@@ -204,9 +185,7 @@ async def serve_image(
         if isinstance(e, HTTPException):
             raise e
         logging.error(f"Error validating path: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid path request"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid path request")
 
     IMAGES_SERVED_TOTAL.inc()
     return FileResponse(image_path)

@@ -1,11 +1,12 @@
-import cv2
+import logging
 import os
 import time
-import requests
 from datetime import datetime
+
+import cv2
 import numpy as np
+import requests
 from twilio.rest import Client
-import logging
 
 # Configure logging
 logging.basicConfig(
@@ -24,13 +25,9 @@ def mask_phone(phone):
 
 # Function to send an SMS alert using Twilio's API via HTTP POST request
 def send_alert(message, to_phone_number):
-    url = (
-        f"https://api.twilio.com/2010-04-01/Accounts/{TWILIO_ACCOUNT_SID}/Messages.json"
-    )
+    url = f"https://api.twilio.com/2010-04-01/Accounts/{TWILIO_ACCOUNT_SID}/Messages.json"
     data = {"To": to_phone_number, "From": TWILIO_PHONE_NUMBER, "Body": message}
-    response = requests.post(
-        url, data=data, auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-    )
+    response = requests.post(url, data=data, auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN))
 
     if response.status_code == 201 or response.status_code == 200:
         logging.info("Alert sent to your mobile!")
@@ -65,9 +62,7 @@ def load_mobilenet_ssd():
 # Detect humans using MobileNet-SSD
 def detect_human_mobilenet_ssd(net, frame):
     # Pre-process the frame (resize, mean subtraction, scaling)
-    blob = cv2.dnn.blobFromImage(
-        cv2.resize(frame, (300, 300)), 0.007843, (300, 300), 127.5
-    )
+    blob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)), 0.007843, (300, 300), 127.5)
     net.setInput(blob)
 
     # Perform forward pass and get detections
@@ -95,9 +90,7 @@ def detect_human_mobilenet_ssd(net, frame):
                 # Draw a bounding box around the detected person
                 cv2.rectangle(frame, (startX, startY), (endX, endY), (0, 255, 0), 2)
                 human_detected = True
-                logging.info(
-                    f"Human detected: Box = ({startX}, {startY}, {endX}, {endY})"
-                )
+                logging.info(f"Human detected: Box = ({startX}, {startY}, {endX}, {endY})")
                 logging.info(f"Detection {i}: Confidence = {confidence}")
 
     return human_detected, frame
@@ -175,9 +168,7 @@ def capture_stream(
                             os.makedirs(date_directory)
 
                         # Save the frame with detected human
-                        filename = (
-                            f"{date_directory}/detection_{channel}_{timestamp}.jpg"
-                        )
+                        filename = f"{date_directory}/detection_{channel}_{timestamp}.jpg"
 
                     if detected:
                         cv2.imwrite(filename, processed_frame)
@@ -193,9 +184,7 @@ def capture_stream(
                 # Check if 30 minutes have passed since last log
                 current_time = time.time()
                 if current_time - last_log_time >= 30 * 60:  # 30 minutes
-                    logging.info(
-                        f"Outside of active hours ({start_time} to {end_time}). Waiting..."
-                    )
+                    logging.info(f"Outside of active hours ({start_time} to {end_time}). Waiting...")
                     last_log_time = current_time  # Update last log time
                 time.sleep(60)  # Wait for 1 minute before checking again
 

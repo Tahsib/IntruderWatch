@@ -1,16 +1,17 @@
+import base64
+import hashlib
+import json
+import logging
+import os
 import subprocess
+import time
+from datetime import datetime
+
 import cv2
 import numpy as np
-import os
-import time
 import pika
-import logging
-import hashlib
-import base64
-import json
-from datetime import datetime
+from prometheus_client import Counter, start_http_server
 from shared.rabbitmq_client import connect_rabbitmq
-from prometheus_client import start_http_server, Counter
 
 # Configure logging
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -21,12 +22,8 @@ logging.basicConfig(
 )
 
 # Prometheus Metrics
-FRAMES_CAPTURED = Counter(
-    "frame_capturer_captured_total", "Total frames captured from stream", ["camera_id"]
-)
-FRAMES_SENT = Counter(
-    "frame_capturer_sent_total", "Total frames sent to queue", ["camera_id"]
-)
+FRAMES_CAPTURED = Counter("frame_capturer_captured_total", "Total frames captured from stream", ["camera_id"])
+FRAMES_SENT = Counter("frame_capturer_sent_total", "Total frames sent to queue", ["camera_id"])
 FRAMES_SKIPPED = Counter(
     "frame_capturer_skipped_total",
     "Total frames skipped (duplicate or rate-limit)",
@@ -77,12 +74,8 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
     else:
         rtsp_url = f"rtsp://{username}:{password}@{ip}:554/cam/realmonitor?channel={channel}&subtype={stream}"
 
-    logger.info(
-        f"Service initialized. Monitoring channel {channel} ({START_TIME_ENV} to {END_TIME_ENV})"
-    )
-    logger.info(
-        f"Resolution: {FRAME_WIDTH}x{FRAME_HEIGHT}, FPS: {FPS}, Format: JPEG ({JPEG_QUALITY})"
-    )
+    logger.info(f"Service initialized. Monitoring channel {channel} ({START_TIME_ENV} to {END_TIME_ENV})")
+    logger.info(f"Resolution: {FRAME_WIDTH}x{FRAME_HEIGHT}, FPS: {FPS}, Format: JPEG ({JPEG_QUALITY})")
 
     last_sent_time = 0
     last_frame_gray = None
@@ -141,9 +134,7 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
                             bufsize=frame_size,
                         )
                         ffmpeg_running = True
-                        logger.info(
-                            f"Stream connection established. Capture started at {FPS} FPS."
-                        )
+                        logger.info(f"Stream connection established. Capture started at {FPS} FPS.")
 
                     raw_frame = b""
                     while len(raw_frame) < frame_size:
@@ -154,9 +145,7 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
 
                     if len(raw_frame) != frame_size:
                         logger.error("Network sync lost. Reconnecting...")
-                        CAPTURE_ERRORS.labels(
-                            camera_id=channel, error_type="network_sync_lost"
-                        ).inc()
+                        CAPTURE_ERRORS.labels(camera_id=channel, error_type="network_sync_lost").inc()
                         try:
                             pipe.kill()
                             pipe.wait(timeout=1)
@@ -171,21 +160,15 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
 
                     if frames_captured % 100 == 0:
                         elapsed = time.time() - app_start_time
-                        logger.info(
-                            f"Heartbeat: {frames_sent}/{frames_captured} frames sent. Uptime: {int(elapsed)}s."
-                        )
+                        logger.info(f"Heartbeat: {frames_sent}/{frames_captured} frames sent. Uptime: {int(elapsed)}s.")
 
                     now_ts = time.time()
                     if now_ts - last_sent_time < min_interval:
                         frames_skipped += 1
-                        FRAMES_SKIPPED.labels(
-                            camera_id=channel, reason="rate_limit"
-                        ).inc()
+                        FRAMES_SKIPPED.labels(camera_id=channel, reason="rate_limit").inc()
                         continue
 
-                    frame = np.frombuffer(raw_frame, dtype=np.uint8).reshape(
-                        (FRAME_HEIGHT, FRAME_WIDTH, 3)
-                    )
+                    frame = np.frombuffer(raw_frame, dtype=np.uint8).reshape((FRAME_HEIGHT, FRAME_WIDTH, 3))
 
                     # --- MOTION FILTERING (THERMAL OPTIMIZATION) ---
                     # Ignore pixel-level noise (night grain) to save GPU energy
@@ -196,25 +179,18 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
                         small_last = cv2.resize(last_frame_gray, (160, 90))
 
                         # Mean Squared Error: determines if anything ACTUALLY moved
-                        mse = np.mean(
-                            (small_current.astype("float") - small_last.astype("float"))
-                            ** 2
-                        )
+                        mse = np.mean((small_current.astype("float") - small_last.astype("float")) ** 2)
 
                         if mse < MOTION_THRESHOLD:
                             frames_duplicate += 1
-                            FRAMES_SKIPPED.labels(
-                                camera_id=channel, reason="duplicate"
-                            ).inc()
+                            FRAMES_SKIPPED.labels(camera_id=channel, reason="duplicate").inc()
                             last_sent_time = now_ts
                             continue
 
                     last_frame_gray = frame_gray
 
                     # Encode as JPEG
-                    success, img_encode = cv2.imencode(
-                        ".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY]
-                    )
+                    success, img_encode = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])
                     if success:
                         byte_data = img_encode.tobytes()
                         img_hash = hashlib.sha256(byte_data).hexdigest()
@@ -235,9 +211,7 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
                         FRAMES_SENT.labels(camera_id=channel).inc()
                     else:
                         logger.error("JPEG encoding failed!")
-                        CAPTURE_ERRORS.labels(
-                            camera_id=channel, error_type="encoding_failed"
-                        ).inc()
+                        CAPTURE_ERRORS.labels(camera_id=channel, error_type="encoding_failed").inc()
 
                     time.sleep(FRAME_SLEEP)
 
@@ -248,9 +222,7 @@ def capture_frames(ip, channel, stream, username, password, queue_name):
                             pipe.kill()
                             pipe.wait(timeout=1)
                         except Exception as kill_err:
-                            logger.warning(
-                                f"Failed to kill ffmpeg pipe during schedule sleep: {kill_err}"
-                            )
+                            logger.warning(f"Failed to kill ffmpeg pipe during schedule sleep: {kill_err}")
                         pipe = None
                         ffmpeg_running = False
                         logger.info("Outside scheduled hours. Disconnected.")

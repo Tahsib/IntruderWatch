@@ -5,12 +5,11 @@ import threading
 import time
 
 import requests
-from requests.adapters import HTTPAdapter
 from flask import Flask, jsonify, request
 from prometheus_client import Counter, start_http_server
-from twilio.rest import Client
-
+from requests.adapters import HTTPAdapter
 from shared.rabbitmq_client import connect_rabbitmq
+from twilio.rest import Client
 
 # Configure connection-pooled HTTP session for high-throughput alerts
 http_session = requests.Session()
@@ -26,9 +25,7 @@ logging.basicConfig(
 )
 
 # Prometheus Metrics
-ALERTS_TOTAL = Counter(
-    "alert_service_alerts_total", "Total alerts received from queue", ["camera_id"]
-)
+ALERTS_TOTAL = Counter("alert_service_alerts_total", "Total alerts received from queue", ["camera_id"])
 ALERTS_SUPPRESSED = Counter(
     "alert_service_alerts_suppressed_total",
     "Total alerts suppressed by cooldown",
@@ -88,9 +85,7 @@ def webhook():
 
         if not safe_topic:
             # Sanitize for logging
-            sanitized_requested = (
-                str(requested_topic).replace("\n", "").replace("\r", "")[:50]
-            )
+            sanitized_requested = str(requested_topic).replace("\n", "").replace("\r", "")[:50]
             logging.warning(f"Unauthorized topic requested: {sanitized_requested}")
             return jsonify({"error": "Invalid topic"}), 403
 
@@ -122,9 +117,7 @@ def webhook():
                     "HostLowDiskSpace": "Disk space issue resolved",
                     "ContainerCPUThrottling": f"Container {alert.get('labels', {}).get('name', 'unknown')} CPU throttling resolved",
                 }
-                detail = resolution_messages.get(
-                    alertname, f"{alertname} condition cleared"
-                )
+                detail = resolution_messages.get(alertname, f"{alertname} condition cleared")
                 message = f"{icon}RESOLVED: {detail}"
                 tag = "white_check_mark"
                 priority = "1"
@@ -183,12 +176,8 @@ def send_call_alert(client, recipient):
         logging.info(f"Call alert sent (destination={phone_id})")
         NOTIFICATIONS_SENT.labels(type="twilio_call", destination=phone_id).inc()
     except Exception as e:
-        logging.error(
-            f"Failed to send call alert (destination={phone_id}, error_type={type(e).__name__})"
-        )
-        NOTIFICATION_ERRORS.labels(
-            type="twilio_call", destination=phone_id, error_type=type(e).__name__
-        ).inc()
+        logging.error(f"Failed to send call alert (destination={phone_id}, error_type={type(e).__name__})")
+        NOTIFICATION_ERRORS.labels(type="twilio_call", destination=phone_id, error_type=type(e).__name__).inc()
 
 
 def _dispatch_calls(twilio_client, recipients):
@@ -214,9 +203,7 @@ def send_ntfy_photo(camera_id, timestamp, filename):
             file_name = parts[-1]
 
             # Use the secure public-facing domain for the phone app
-            image_url = (
-                f"{VIEWER_PUBLIC_URL}/images/{cam_folder}/{date_folder}/{file_name}"
-            )
+            image_url = f"{VIEWER_PUBLIC_URL}/images/{cam_folder}/{date_folder}/{file_name}"
             if IMAGE_ACCESS_CODE:
                 image_url += f"?token={IMAGE_ACCESS_CODE}"
         else:
@@ -235,15 +222,11 @@ def send_ntfy_photo(camera_id, timestamp, filename):
         response = http_session.post(url, headers=headers, timeout=15)
         response.raise_for_status()
 
-        logging.info(
-            f"ntfy private photo alert link sent for Camera {camera_id} (Token: [HIDDEN])."
-        )
+        logging.info(f"ntfy private photo alert link sent for Camera {camera_id} (Token: [HIDDEN]).")
         NOTIFICATIONS_SENT.labels(type="ntfy_photo", destination=camera_id).inc()
     except Exception as e:
         logging.error(f"Failed to send ntfy photo link for Cam {camera_id}: {e}")
-        NOTIFICATION_ERRORS.labels(
-            type="ntfy_photo", destination=camera_id, error_type=type(e).__name__
-        ).inc()
+        NOTIFICATION_ERRORS.labels(type="ntfy_photo", destination=camera_id, error_type=type(e).__name__).inc()
 
 
 def alert_service(queue_name):
@@ -266,9 +249,7 @@ def alert_service(queue_name):
 
         ALERTS_TOTAL.labels(camera_id=camera_id).inc()
 
-        logging.info(
-            f"!!! ALERT !!! Human detected on Camera {camera_id} at {timestamp}"
-        )
+        logging.info(f"!!! ALERT !!! Human detected on Camera {camera_id} at {timestamp}")
 
         # 1. Always dispatch ntfy photo alert immediately
         threading.Thread(
@@ -297,9 +278,7 @@ def alert_service(queue_name):
 
     connection, channel = connect_rabbitmq(queue_name)
     channel.basic_qos(prefetch_count=20)
-    channel.basic_consume(
-        queue=queue_name, on_message_callback=callback, auto_ack=False
-    )
+    channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=False)
     logging.info(f"Alert Service running. Cooldown: {ALERT_COOLDOWN}s")
     channel.start_consuming()
 
