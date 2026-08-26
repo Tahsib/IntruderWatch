@@ -20,6 +20,7 @@ logging.basicConfig(
     format="%(asctime)s [capturer:%(name)s] [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+logging.getLogger("pika").setLevel(logging.WARNING)
 
 # Prometheus Metrics
 FRAMES_CAPTURED = Counter("frame_capturer_captured_total", "Total frames captured from stream", ["camera_id"])

@@ -5,6 +5,7 @@ import time
 import pika
 
 logger = logging.getLogger(__name__)
+logging.getLogger("pika").setLevel(logging.WARNING)
 
 
 def connect_rabbitmq(queue_names, retries=15, delay=5, frame_max=0):

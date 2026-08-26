@@ -8,72 +8,73 @@ IntruderWatch is an industry-grade, real-time intruder detection system optimize
 
 ```mermaid
 graph TD
-    subgraph "Ingestion Network"
-        subgraph "Cam 1 Pipeline"
-            C1[Camera 1: 1080P]
-            FC1[Capturer Container 1]
-        end
-        subgraph "Cam 2 Pipeline"
-            C2[Camera 2: 1080P]
-            FC2[Capturer Container 2]
-        end
-        subgraph "Scalability..."
-            CX[Other Channels...]
-        end
+    subgraph "External Camera Network"
+        C1[Camera 1..8: RTSP 1080P]
     end
 
-    subgraph "Intel i7-12700K (Host CPU)"
-        subgraph "Processing Stack"
-            MSE[MSE Motion Filtering]
-            ENC[JPEG Encoder]
-        end
-
-        subgraph "Message Broker (RAM)"
-            RMQ[(RabbitMQ: 2GB tmpfs)]
-        end
-
-        subgraph "Observability Suite"
-            PROM[Prometheus]
-            GRAF[Grafana Master Dashboard]
-            CADV[cAdvisor]
-            NODE[Node Exporter]
-            GPU_EXP[AMD GPU Exporter]
-        end
+    subgraph "Ingestion Engine (Intel i7 CPU)"
+        FC[Frame Capturers: 8 Channels]
+        MSE[MSE Motion Filtering]
+        ENC[JPEG Encoder: 85%]
     end
 
-    subgraph "AMD RX 6800 XT (GPU)"
-        subgraph "Detection Inference (ROCm)"
-            DET[Detector Cluster: YOLO11 Medium]
-            BUF[High-Res Inference Buffer]
-        end
+    subgraph "Message Broker (RAM)"
+        RMQ_F[(RabbitMQ: frame_queue)]
+        RMQ_A[(RabbitMQ: alert_queue)]
+    end
+
+    subgraph "Core Inference Engine (AMD RX 6800 XT / ROCm)"
+        DET[Detector Cluster: YOLO11 Medium]
+        FP16[FP16 Half-Precision Inference]
     end
 
     subgraph "Notifications & Storage"
-        ALRT[Alert Service]
-        VIEW[FastAPI Viewer]
-        NOTI[ntfy / Twilio]
-        DISK[(SSD Captures)]
+        DISK[(SSD Captures Storage)]
+        VIEW[FastAPI Viewer Service: Port 8085]
+        NTFY[ntfy Push Server: Port 8081]
+        ALRT[Alert Service: Webhook & Cooldown]
     end
 
-    %% Traffic Flow
-    C1 -- "RTSP" --> FC1
-    C2 -- "RTSP" --> FC2
+    subgraph "Secure Remote Access Layer"
+        TUNNEL[cloudflared_tunnel Container]
+        CF[Cloudflare Edge: QUIC / HTTPS]
+        PHONE[Mobile App / Remote User]
+    end
 
-    FC1 & FC2 -- "Raw BGR" --> MSE
-    MSE -- "Motion Detected?" --> ENC
-    ENC -- "Base64 JPEG" --> RMQ
-    RMQ -- "Queue: frame_queue" --> DET
-    DET -- "ROCm Acceleration" --> BUF
-    BUF -- "Human? = YES" --> RMQ
-    RMQ -- "Queue: alert_queue" --> ALRT
-    BUF -- "Persist Frame" --> DISK
-    ALRT -- "Async Notify" --> NOTI
+    subgraph "Observability Suite"
+        PROM[Prometheus + Alertmanager]
+        GRAF[Grafana Master Command Center]
+        LOKI[Loki + Promtail Logs]
+        EXP[cAdvisor / Node / AMD GPU Exporters]
+    end
+
+    %% Ingestion Flow
+    C1 -- "RTSP" --> FC
+    FC -- "Raw BGR24" --> MSE
+    MSE -- "Motion Detected" --> ENC
+    ENC -- "Base64 JPEG" --> RMQ_F
+
+    %% Detection Flow
+    RMQ_F -- "Consume Frame" --> DET
+    DET --> FP16
+    FP16 -- "Human Detected" --> DISK
+    FP16 -- "Publish Alert" --> RMQ_A
+
+    %% Alerting Flow
+    RMQ_A --> ALRT
+    ALRT -- "Local HTTP" --> NTFY
+    ALRT -- "Voice Call API" --> TWILIO[Twilio Voice Call]
+
+    %% Remote Access Flow
     DISK -- "Secure Serve" --> VIEW
+    VIEW & NTFY <--> TUNNEL
+    TUNNEL <== "Outbound QUIC Tunnel" ==> CF
+    CF <== "watch.tahsib.dev / alerts.tahsib.dev" ==> PHONE
 
-    %% Monitoring Flow
-    FC1 & FC2 & DET & ALRT & RMQ -- "RED Metrics" --> PROM
-    NODE & CADV & GPU_EXP -- "USE Metrics" --> PROM
-    PROM -- "PromQL" --> GRAF
+    %% Observability Flow
+    FC & DET & ALRT & VIEW & EXP -- "Metrics" --> PROM
+    FC & DET & ALRT & VIEW -- "Container Logs" --> LOKI
+    PROM & LOKI --> GRAF
 ```
 
 ## 🚀 Key Features (High Efficiency Mode)
