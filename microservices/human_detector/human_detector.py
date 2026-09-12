@@ -11,7 +11,6 @@ from datetime import datetime
 
 import cv2
 import numpy as np
-import torch
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
 from shared.rabbitmq_client import connect_rabbitmq
 from ultralytics import YOLO
@@ -78,16 +77,21 @@ class DetectionState:
 
 
 def memory_manager(state):
-    """Background thread to release RAM/VRAM during idle periods."""
+    """Background thread to safely release RAM during idle periods without hanging ROCm."""
+    parked = False
     while True:
-        time.sleep(300)  # Check every 5 minutes
+        time.sleep(60)  # Check every minute
         idle_duration = time.time() - state.last_frame_time
         if idle_duration > 300:
-            logging.info(f"AI idle for {int(idle_duration)}s. Parking memory...")
-            gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-            logging.info("Memory parked successfully.")
+            if not parked:
+                logging.info(f"AI idle for {int(idle_duration)}s. Parking memory...")
+                gc.collect()
+                # Note: Avoid torch.cuda.empty_cache() from secondary daemon threads on ROCm,
+                # as HIP cross-thread memory deallocation can trigger driver spinlock/deadlocks.
+                logging.info("Memory parked successfully.")
+                parked = True
+        else:
+            parked = False
 
 
 def consume_frames(queue_name):
