@@ -49,6 +49,7 @@ TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_FROM = os.getenv("TWILIO_PHONE_NUMBER")
 ALERT_RECIPIENTS = os.getenv("ALERT_PHONE_NUMBERS", "")
 ALERT_COOLDOWN = int(os.getenv("ALERT_COOLDOWN", "90"))
+NTFY_COOLDOWN = int(os.getenv("NTFY_COOLDOWN", "60"))
 ENABLE_CALL_ALERTS = os.getenv("ENABLE_CALL_ALERTS", "false").lower() == "true"
 
 # ntfy Configuration (Self-Hosted Private Alerts)
@@ -233,6 +234,7 @@ def send_ntfy_photo(camera_id, timestamp, filename):
 def alert_service(queue_name):
     twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
     last_call_time = 0
+    last_ntfy_times = {}
 
     def callback(ch, method, properties, body):
         nonlocal last_call_time
@@ -252,12 +254,20 @@ def alert_service(queue_name):
 
         logging.info(f"!!! ALERT !!! Human detected on Camera {camera_id} at {timestamp}")
 
-        # 1. Always dispatch ntfy photo alert immediately
-        threading.Thread(
-            target=send_ntfy_photo,
-            args=(camera_id, timestamp, filename),
-            daemon=True,
-        ).start()
+        # 1. Dispatch ntfy photo alert with per-camera cooldown
+        last_cam_ntfy = last_ntfy_times.get(camera_id, 0)
+        if current_time - last_cam_ntfy > NTFY_COOLDOWN:
+            last_ntfy_times[camera_id] = current_time
+            logging.info(f"Dispatching ntfy photo alert for Camera {camera_id}")
+            threading.Thread(
+                target=send_ntfy_photo,
+                args=(camera_id, timestamp, filename),
+                daemon=True,
+            ).start()
+        else:
+            remaining = int(NTFY_COOLDOWN - (current_time - last_cam_ntfy))
+            logging.info(f"ntfy photo alert suppressed by cooldown ({remaining}s remaining) for Camera {camera_id}.")
+            ALERTS_SUPPRESSED.labels(camera_id=camera_id).inc()
 
         # 2. Dispatch Twilio call alert with cooldown
         if ENABLE_CALL_ALERTS:
