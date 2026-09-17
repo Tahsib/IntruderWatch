@@ -3,21 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>IntruderWatch | Secure Viewer</title>
+    <title>IntruderWatch | Security Fleet</title>
+    <!-- Fonts: Plus Jakarta Sans for crisp Uber-style geometric typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         :root {
-            --bg-deep: #0a0a0c;
-            --bg-surface: #16161a;
-            --bg-accent: #1f1f23;
-            --primary: #3b82f6;
-            --primary-hover: #2563eb;
-            --text-main: #f1f1f1;
-            --text-dim: #94a3b8;
-            --danger: #ef4444;
-            --glass: rgba(255, 255, 255, 0.03);
-            --border: rgba(255, 255, 255, 0.1);
-            --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+            /* Uber Base Color Palette */
+            --uber-black: #000000;
+            --uber-surface: #121212;
+            --uber-surface-card: #181818;
+            --uber-surface-hover: #222222;
+            --uber-surface-active: #2a2a2a;
+            --uber-border: #262626;
+            --uber-border-strong: #383838;
+            --uber-white: #ffffff;
+            --uber-gray-100: #f6f6f6;
+            --uber-gray-300: #d4d4d4;
+            --uber-gray-500: #a3a3a3;
+            --uber-gray-700: #737373;
+            --uber-gray-800: #262626;
+
+            /* Accent Colors */
+            --uber-green: #06c167;
+            --uber-green-glow: rgba(6, 193, 103, 0.25);
+            --uber-blue: #276ef1;
+            --uber-red: #e11900;
+
+            /* Dimensions & Radius */
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-pill: 9999px;
+
+            /* Font Stack */
+            --font-main: 'Plus Jakarta Sans', 'Uber Move', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --font-mono: 'Space Mono', monospace;
         }
 
         * {
@@ -28,142 +51,408 @@
         }
 
         body {
-            font-family: 'Inter', -apple-system, system-ui, sans-serif;
-            background-color: var(--bg-deep);
-            color: var(--text-main);
+            font-family: var(--font-main);
+            background-color: var(--uber-black);
+            color: var(--uber-white);
             display: flex;
             height: 100vh;
             overflow: hidden;
+            letter-spacing: -0.01em;
         }
 
-        @media (max-width: 768px) {
-            body { flex-direction: column; }
-        }
-
+        /* App Layout */
         .sidebar {
-            width: 260px;
-            background-color: var(--bg-surface);
-            border-right: 1px solid var(--border);
+            width: 300px;
+            background-color: var(--uber-surface);
+            border-right: 1px solid var(--uber-border);
             display: flex;
             flex-direction: column;
-            transition: transform 0.3s ease;
             z-index: 100;
+            user-select: none;
+            flex-shrink: 0;
         }
 
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 100%;
-                height: auto;
-                max-height: 30vh;
-                border-right: none;
-                border-bottom: 1px solid var(--border);
-            }
-        }
-
-        .brand {
-            padding: 24px;
+        /* Uber Brand Header */
+        .brand-header {
+            height: 72px;
+            box-sizing: border-box;
+            padding: 0 20px;
+            border-bottom: 1px solid var(--uber-border);
             display: flex;
             align-items: center;
-            gap: 12px;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
             font-weight: 800;
-            font-size: 1.2rem;
-            color: var(--primary);
-            letter-spacing: -0.5px;
+            font-size: 1.25rem;
+            color: var(--uber-white);
+            letter-spacing: -0.04em;
+        }
+
+        .brand-logo span.light {
+            font-weight: 400;
+            color: var(--uber-gray-500);
+        }
+
+        .brand-badge {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 3px 8px;
+            background: var(--uber-black);
+            color: var(--uber-gray-300);
+            border: 1px solid var(--uber-border);
+            border-radius: var(--radius-pill);
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .brand-badge .badge-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background-color: var(--uber-green);
+        }
+
+        /* Sidebar Sections */
+        .sidebar-section-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--uber-gray-700);
+            padding: 20px 20px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-section-title span.count {
+            background: var(--uber-surface-hover);
+            color: var(--uber-gray-500);
+            padding: 1px 7px;
+            border-radius: var(--radius-pill);
+            font-size: 0.65rem;
         }
 
         .camera-list {
             flex: 1;
             overflow-y: auto;
-            padding: 0 12px 24px;
+            padding: 6px 14px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
 
+        /* Camera Items - Uber Ride Selector Style */
         .camera-item {
+            background-color: var(--uber-surface-card);
+            border: 1.5px solid var(--uber-border);
+            border-radius: var(--radius-md);
+            padding: 12px 14px;
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 12px 16px;
-            margin-bottom: 4px;
-            border-radius: 8px;
+            justify-content: space-between;
             cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            color: var(--text-dim);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
         }
 
         .camera-item:hover {
-            background-color: var(--bg-accent);
-            color: var(--text-main);
+            background-color: var(--uber-surface-hover);
+            border-color: var(--uber-border-strong);
+            transform: translateY(-1px);
         }
 
         .camera-item.active {
-            background-color: rgba(59, 130, 246, 0.1);
-            color: var(--primary);
-            font-weight: 600;
+            background-color: var(--uber-surface-active);
+            border-color: var(--uber-white);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
         }
 
+        .camera-item-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .camera-icon-wrapper {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: var(--uber-black);
+            border: 1px solid var(--uber-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--uber-white);
+            transition: all 0.2s ease;
+        }
+
+        .camera-item.active .camera-icon-wrapper {
+            background: var(--uber-white);
+            color: var(--uber-black);
+            border-color: var(--uber-white);
+        }
+
+        .camera-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .camera-title {
+            font-size: 0.92rem;
+            font-weight: 700;
+            color: var(--uber-white);
+            letter-spacing: -0.01em;
+        }
+
+        .camera-subtitle {
+            font-size: 0.75rem;
+            color: var(--uber-gray-500);
+            font-weight: 500;
+        }
+
+        .camera-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--uber-gray-700);
+            transition: all 0.2s ease;
+        }
+
+        .camera-item.active .camera-status-dot {
+            background-color: var(--uber-green);
+            box-shadow: 0 0 10px var(--uber-green);
+        }
+
+        /* Sidebar Footer */
+        .sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--uber-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--uber-gray-700);
+        }
+
+        .live-status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            color: var(--uber-gray-300);
+            font-size: 0.72rem;
+        }
+
+        .pulse-dot {
+            width: 7px;
+            height: 7px;
+            background-color: var(--uber-green);
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .pulse-dot::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            background-color: var(--uber-green);
+            border-radius: 50%;
+            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(2.6); opacity: 0; }
+        }
+
+        /* Main Workspace */
         .main {
             flex: 1;
             display: flex;
             flex-direction: column;
-            background-color: var(--bg-deep);
+            background-color: var(--uber-black);
+            overflow: hidden;
             position: relative;
         }
 
+        /* Topbar - Uber Style */
         .topbar {
             height: 72px;
-            background-color: rgba(10, 10, 12, 0.8);
-            backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--border);
+            box-sizing: border-box;
+            background-color: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--uber-border);
             padding: 0 24px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             z-index: 50;
+            gap: 16px;
+            flex-shrink: 0;
         }
 
-        @media (max-width: 768px) {
-            .topbar { height: 60px; padding: 0 16px; }
-        }
-
-        .controls {
+        .topbar-left {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        /* Uber Style Selector Pills */
+        .selector-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .uber-date-container {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .date-select-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            background: var(--uber-surface-card);
+            border: 1px solid var(--uber-border);
+            border-radius: var(--radius-pill);
+            padding: 8px 16px 8px 14px;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .date-select-wrapper:hover {
+            border-color: var(--uber-gray-500);
+            background: var(--uber-surface-hover);
+        }
+
+        .date-select-wrapper i {
+            color: var(--uber-gray-500);
+            pointer-events: none;
         }
 
         .date-select {
-            background-color: var(--bg-accent);
-            color: var(--text-main);
-            border: 1px solid var(--border);
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            outline: none;
+            appearance: none;
+            background: transparent;
+            border: none;
+            color: var(--uber-white);
+            font-family: var(--font-main);
+            font-size: 0.85rem;
+            font-weight: 600;
             cursor: pointer;
-            min-width: 160px;
+            outline: none;
+            padding-right: 18px;
         }
 
-        .status-badge {
+        .date-select option {
+            background-color: var(--uber-surface);
+            color: var(--uber-white);
+            font-size: 0.9rem;
+            padding: 8px;
+        }
+
+        .date-chevron {
+            position: absolute;
+            right: 14px;
+            pointer-events: none;
+            color: var(--uber-gray-500);
+        }
+
+        /* Quick Today Button */
+        .uber-pill-btn {
+            background: var(--uber-surface-card);
+            border: 1px solid var(--uber-border);
+            color: var(--uber-gray-300);
+            font-family: var(--font-main);
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: var(--radius-pill);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .uber-pill-btn:hover {
+            background: var(--uber-surface-hover);
+            color: var(--uber-white);
+            border-color: var(--uber-gray-500);
+        }
+
+        .uber-pill-btn.active {
+            background: var(--uber-white);
+            color: var(--uber-black);
+            border-color: var(--uber-white);
+            font-weight: 700;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .badge-count {
+            background: var(--uber-surface-card);
+            border: 1px solid var(--uber-border);
+            color: var(--uber-white);
+            font-weight: 700;
+            font-size: 0.8rem;
+            padding: 8px 14px;
+            border-radius: var(--radius-pill);
             display: flex;
             align-items: center;
             gap: 6px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            color: var(--text-dim);
-            padding: 4px 10px;
-            background: var(--bg-accent);
-            border-radius: 20px;
         }
 
-        .status-badge.active::before {
-            content: '';
-            width: 6px;
-            height: 6px;
-            background-color: #10b981;
+        .badge-count span.num {
+            color: var(--uber-green);
+        }
+
+        .icon-btn {
+            width: 38px;
+            height: 38px;
             border-radius: 50%;
-            box-shadow: 0 0 10px #10b981;
+            background: var(--uber-surface-card);
+            border: 1px solid var(--uber-border);
+            color: var(--uber-gray-300);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
         }
 
+        .icon-btn:hover {
+            background: var(--uber-white);
+            color: var(--uber-black);
+            border-color: var(--uber-white);
+        }
+
+        .icon-btn.spinning i {
+            animation: spin 0.8s linear infinite;
+        }
+
+        /* Content Area */
         .content {
             flex: 1;
             overflow-y: auto;
@@ -171,45 +460,68 @@
             scroll-behavior: smooth;
         }
 
+        .content-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--uber-border);
+        }
+
+        .content-title-box {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .content-title {
+            font-size: 1.3rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            color: var(--uber-white);
+        }
+
+        .content-subtitle {
+            font-size: 0.8rem;
+            color: var(--uber-gray-500);
+            font-weight: 500;
+        }
+
+        /* Image Grid - Uber Cards */
         .image-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
             gap: 20px;
         }
 
-        @media (max-width: 480px) {
-            .image-grid { grid-template-columns: 1fr; }
-            .content { padding: 12px; }
-        }
-
         .image-card {
-            background-color: var(--bg-surface);
-            border-radius: 12px;
-            border: 1px solid var(--border);
+            background-color: var(--uber-surface-card);
+            border: 1px solid var(--uber-border);
+            border-radius: var(--radius-lg);
             overflow: hidden;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: var(--shadow);
-            animation: fadeIn 0.5s ease forwards;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            position: relative;
         }
 
         .image-card:hover {
-            transform: translateY(-4px);
-            border-color: var(--primary);
+            transform: translateY(-3px);
+            border-color: var(--uber-gray-500);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.8);
         }
 
         .image-wrapper {
             aspect-ratio: 16/9;
-            background-color: #000;
+            background-color: #0d0d0d;
             position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow: hidden;
         }
 
         .image-card img {
@@ -217,33 +529,137 @@
             height: 100%;
             object-fit: cover;
             opacity: 0;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        .image-card img.loaded { opacity: 1; }
+        .image-card:hover img.loaded {
+            transform: scale(1.03);
+        }
 
-        .card-footer {
-            padding: 12px 16px;
+        .image-card img.loaded {
+            opacity: 1;
+        }
+
+        /* Floating Badges on Images */
+        .card-top-pill {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--uber-white);
+            padding: 4px 10px;
+            border-radius: var(--radius-pill);
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            background: var(--bg-surface);
+            gap: 6px;
+            z-index: 2;
         }
 
-        .timestamp {
+        .card-tag-pill {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(6, 193, 103, 0.15);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(6, 193, 103, 0.4);
+            color: var(--uber-green);
+            padding: 4px 9px;
+            border-radius: var(--radius-pill);
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Card Hover Action Hint */
+        .card-hover-hint {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--uber-white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transform: scale(0.85);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .image-card:hover .card-hover-hint {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Empty & Loading States */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 60vh;
+            color: var(--uber-gray-500);
+            text-align: center;
+            padding: 20px;
+        }
+
+        .empty-icon-circle {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: var(--uber-surface-card);
+            border: 1px solid var(--uber-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--uber-gray-300);
+            margin-bottom: 20px;
+        }
+
+        .empty-state h3 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--uber-white);
+            margin-bottom: 6px;
+        }
+
+        .empty-state p {
             font-size: 0.85rem;
-            font-weight: 500;
-            color: var(--text-main);
+            color: var(--uber-gray-500);
+            max-width: 360px;
+            line-height: 1.4;
         }
 
-        .tag {
-            font-size: 0.7rem;
-            color: var(--text-dim);
-            background: var(--bg-accent);
-            padding: 2px 6px;
-            border-radius: 4px;
+        .spinner {
+            width: 30px;
+            height: 30px;
+            border: 2.5px solid var(--uber-border);
+            border-top-color: var(--uber-white);
+            border-radius: 50%;
+            animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
         }
 
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Uber Modal / Lightbox */
         .lightbox {
             display: none;
             position: fixed;
@@ -251,144 +667,481 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.95);
-            backdrop-filter: blur(8px);
+            background-color: rgba(0, 0, 0, 0.94);
+            backdrop-filter: blur(20px);
             z-index: 1000;
             flex-direction: column;
+            animation: modalFade 0.2s ease-out;
         }
 
-        .lightbox.active { display: flex; }
+        @keyframes modalFade {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .lightbox.active {
+            display: flex;
+        }
 
         .lightbox-header {
-            padding: 20px;
+            padding: 16px 28px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            color: var(--text-main);
+            border-bottom: 1px solid var(--uber-border);
+            background: rgba(18, 18, 18, 0.8);
+            backdrop-filter: blur(10px);
         }
 
-        .lightbox-content {
+        .lightbox-title-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .lightbox-title {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--uber-white);
+            letter-spacing: -0.02em;
+        }
+
+        .lightbox-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            background: var(--uber-surface-hover);
+            border: 1px solid var(--uber-border);
+            border-radius: var(--radius-pill);
+            color: var(--uber-gray-300);
+        }
+
+        .lightbox-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Uber Signature White Pill Button */
+        .uber-btn-primary {
+            background: var(--uber-white);
+            color: var(--uber-black);
+            font-family: var(--font-main);
+            font-size: 0.85rem;
+            font-weight: 700;
+            padding: 9px 18px;
+            border-radius: var(--radius-pill);
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .uber-btn-primary:hover {
+            background: var(--uber-gray-100);
+            transform: scale(1.02);
+        }
+
+        .close-circle-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--uber-surface-card);
+            border: 1px solid var(--uber-border);
+            color: var(--uber-white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .close-circle-btn:hover {
+            background: var(--uber-surface-hover);
+            border-color: var(--uber-gray-500);
+        }
+
+        .lightbox-body {
             flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
             position: relative;
-            padding: 20px;
-            touch-action: none;
+            padding: 24px;
+            overflow: hidden;
         }
 
         .main-img {
-            max-width: 100%;
-            max-height: 85vh;
+            max-width: 90vw;
+            max-height: 75vh;
             object-fit: contain;
-            border-radius: 4px;
-            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            border-radius: var(--radius-md);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9);
+            border: 1px solid var(--uber-border);
         }
 
-        .nav-btn {
+        .lightbox-nav-btn {
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
-            background: rgba(255,255,255,0.05);
-            border: 1px solid var(--border);
-            color: white;
-            width: 56px;
-            height: 56px;
+            background: rgba(24, 24, 24, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--uber-border);
+            color: var(--uber-white);
+            width: 54px;
+            height: 54px;
             border-radius: 50%;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
             z-index: 10;
         }
 
-        .nav-btn:hover { background: var(--primary); }
-        .prev-btn { left: 30px; }
-        .next-btn { right: 30px; }
-
-        @media (max-width: 768px) { .nav-btn { display: none; } }
-
-        .close-btn { background: none; border: none; color: white; cursor: pointer; padding: 8px; }
-
-        .spinner {
-            width: 24px;
-            height: 24px;
-            border: 3px solid var(--border);
-            border-top-color: var(--primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
+        .lightbox-nav-btn:hover {
+            background: var(--uber-white);
+            color: var(--uber-black);
+            border-color: var(--uber-white);
+            transform: translateY(-50%) scale(1.05);
         }
 
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .prev-btn { left: 24px; }
+        .next-btn { right: 24px; }
 
-        .empty-state {
+        /* Uber Drawer Bottom Sheet */
+        .lightbox-footer {
+            padding: 16px 28px;
+            background: rgba(18, 18, 18, 0.85);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid var(--uber-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--uber-gray-500);
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .footer-tile-group {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .footer-tile {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 60vh;
-            color: var(--text-dim);
-            gap: 16px;
+            gap: 2px;
         }
 
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: var(--bg-accent); border-radius: 10px; }
+        .footer-tile .label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--uber-gray-700);
+            font-weight: 700;
+        }
+
+        .footer-tile .val {
+            font-size: 0.85rem;
+            color: var(--uber-white);
+            font-weight: 600;
+        }
+
+        .footer-tile .val-mono {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--uber-gray-300);
+        }
+
+        .footer-shortcuts {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.75rem;
+        }
+
+        .key-hint {
+            background: var(--uber-surface-hover);
+            border: 1px solid var(--uber-border);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--uber-gray-300);
+            font-size: 0.7rem;
+            font-family: var(--font-mono);
+        }
+
+        /* Copy Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--uber-white);
+            color: var(--uber-black);
+            padding: 10px 20px;
+            border-radius: var(--radius-pill);
+            font-size: 0.85rem;
+            font-weight: 700;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+            opacity: 0;
+            z-index: 2000;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--uber-border-strong);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--uber-gray-700);
+        }
+
+        /* Mobile Adaptations */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid var(--uber-border);
+            }
+
+            .brand-header {
+                padding: 16px;
+            }
+
+            .sidebar-section-title {
+                display: none;
+            }
+
+            .camera-list {
+                flex-direction: row;
+                overflow-x: auto;
+                padding: 10px 16px;
+                gap: 10px;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .camera-item {
+                min-width: 170px;
+                padding: 10px 12px;
+                flex-shrink: 0;
+            }
+
+            .sidebar-footer {
+                display: none;
+            }
+
+            .topbar {
+                height: auto;
+                padding: 12px 16px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .topbar-left, .topbar-right {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .content {
+                padding: 16px;
+            }
+
+            .image-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .lightbox-nav-btn {
+                display: none;
+            }
+
+            .lightbox-header, .lightbox-footer {
+                padding: 14px 16px;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="sidebar">
-        <div class="brand">
-            <i data-lucide="shield-check"></i>
-            <span>IntruderWatch</span>
+    <!-- Sidebar / Camera Fleet Navigation -->
+    <aside class="sidebar">
+        <div class="brand-header">
+            <div class="brand-logo">
+                <i data-lucide="shield-alert" style="color: var(--uber-white);"></i>
+                <div>Intruder<span class="light">Watch</span></div>
+            </div>
+            <span class="brand-badge"><span class="badge-dot"></span>LIVE OPS</span>
         </div>
-        <div class="camera-list" id="cameraList"></div>
-    </div>
 
-    <div class="main">
+        <div class="sidebar-section-title">
+            <span>Fleet Cameras</span>
+            <span class="count" id="cameraCount">0 Active</span>
+        </div>
+
+        <div class="camera-list" id="cameraList">
+            <!-- Dynamic Uber camera items -->
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="live-status-pill">
+                <div class="pulse-dot"></div>
+                <span>Fleet Live Sync</span>
+            </div>
+            <span style="font-size: 0.7rem; color: var(--uber-gray-700);">Local Network</span>
+        </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="main">
         <header class="topbar">
-            <div class="controls">
-                <select class="date-select" id="dateSelect" disabled>
-                    <option value="">Select Date</option>
-                </select>
-                <div class="status-badge" id="cameraStatus">
-                    <i data-lucide="video"></i>
-                    <span id="cameraNameDisplay">Standby</span>
+            <div class="topbar-left">
+                <!-- Date Selector (Uber Schedule / Destination Style) -->
+                <div class="selector-group">
+                    <div class="date-select-wrapper">
+                        <i data-lucide="calendar" size="16"></i>
+                        <select class="date-select" id="dateSelect" disabled>
+                            <option value="">Select Date</option>
+                        </select>
+                        <i data-lucide="chevron-down" size="14" class="date-chevron"></i>
+                    </div>
+
+                    <button class="uber-pill-btn" id="todayBtn" title="Jump to Today's Live Feed">
+                        <i data-lucide="clock" size="14"></i>
+                        <span>Today</span>
+                    </button>
                 </div>
             </div>
-            <div id="stats" class="status-badge">
-                <span id="imageCount">0 Images</span>
+
+            <div class="topbar-right">
+                <div class="badge-count" id="statsBadge">
+                    <i data-lucide="video" size="14"></i>
+                    <span id="imageCountText"><span class="num">0</span> Captures</span>
+                </div>
+
+                <button class="icon-btn" id="refreshBtn" title="Refresh Feed" onclick="manualRefresh()">
+                    <i data-lucide="rotate-cw" size="16"></i>
+                </button>
+
+                <button onclick="handleLogout(event)" class="uber-pill-btn" title="Sign Out">
+                    <i data-lucide="log-out" size="14"></i>
+                    <span>Sign Out</span>
+                </button>
             </div>
         </header>
 
-        <main class="content" id="content">
-            <div class="empty-state" id="initialState">
-                <i data-lucide="search" size="48"></i>
-                <p>Select a camera to begin monitoring</p>
+        <section class="content" id="content">
+            <div class="content-header">
+                <h2 class="content-title" id="displayCameraTitle">Monitoring Dashboard</h2>
             </div>
+
+            <!-- Initial Empty State -->
+            <div class="empty-state" id="initialState">
+                <div class="empty-icon-circle">
+                    <i data-lucide="radio" size="32"></i>
+                </div>
+                <h3>No Camera Selected</h3>
+                <p>Choose an available camera from the fleet on the left to monitor detected intrusion events.</p>
+            </div>
+
+            <!-- Captures Grid -->
             <div class="image-grid" id="imageGrid"></div>
-        </main>
+        </section>
+    </main>
+
+    <!-- Lightbox / Event Details Modal (Uber Trip Sheet Style) -->
+    <div class="lightbox" id="lightbox">
+        <header class="lightbox-header">
+            <div class="lightbox-title-box">
+                <h3 class="lightbox-title" id="lightboxTimeTitle">Detection Event</h3>
+                <span class="lightbox-badge" id="lightboxCameraBadge">Camera</span>
+            </div>
+            <div class="lightbox-actions">
+                <a id="lightboxDownloadBtn" href="" download class="uber-btn-primary">
+                    <i data-lucide="download" size="16"></i>
+                    <span>Download</span>
+                </a>
+                <button class="close-circle-btn" onclick="closeLightbox()" title="Close (Esc)">
+                    <i data-lucide="x" size="20"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="lightbox-body" id="lightboxContent">
+            <button class="lightbox-nav-btn prev-btn" onclick="navigate(-1)" title="Previous (Left Arrow)">
+                <i data-lucide="chevron-left" size="28"></i>
+            </button>
+            <img id="mainImg" class="main-img" src="" alt="Capture Preview">
+            <button class="lightbox-nav-btn next-btn" onclick="navigate(1)" title="Next (Right Arrow)">
+                <i data-lucide="chevron-right" size="28"></i>
+            </button>
+        </div>
+
+        <footer class="lightbox-footer">
+            <div class="footer-tile-group">
+                <div class="footer-tile">
+                    <span class="label">Detection File (Click to copy)</span>
+                    <span class="val-mono" id="lightboxFilename" style="cursor: pointer;" title="Click to copy full filename" onclick="copyFilename()">-</span>
+                </div>
+                <div class="footer-tile">
+                    <span class="label">Timestamp</span>
+                    <span class="val" id="lightboxExactTime">-</span>
+                </div>
+                <div class="footer-tile">
+                    <span class="label">Frame Hash</span>
+                    <span class="val-mono" id="lightboxHash">-</span>
+                </div>
+                <div class="footer-tile">
+                    <span class="label">Worker ID</span>
+                    <span class="val-mono" id="lightboxWorker">-</span>
+                </div>
+                <div class="footer-tile">
+                    <span class="label">Status</span>
+                    <span class="val" style="color: var(--uber-green);">Verified Intruder</span>
+                </div>
+            </div>
+
+            <div class="footer-shortcuts">
+                <span class="key-hint">←</span>
+                <span class="key-hint">→</span>
+                <span>Navigate</span>
+                <span style="margin: 0 4px;">•</span>
+                <span class="key-hint">ESC</span>
+                <span>Close</span>
+            </div>
+        </footer>
     </div>
 
-    <div class="lightbox" id="lightbox">
-        <div class="lightbox-header">
-            <div class="info">
-                <div id="lightboxTime" style="font-weight: 600;"></div>
-                <div id="lightboxFile" style="font-size: 0.75rem; color: var(--text-dim);"></div>
-            </div>
-            <button class="close-btn" onclick="closeLightbox()">
-                <i data-lucide="x"></i>
-            </button>
-        </div>
-        <div class="lightbox-content" id="lightboxContent">
-            <button class="nav-btn prev-btn" onclick="navigate(-1)">
-                <i data-lucide="chevron-left"></i>
-            </button>
-            <img id="mainImg" class="main-img" src="" alt="Capture">
-            <button class="nav-btn next-btn" onclick="navigate(1)">
-                <i data-lucide="chevron-right"></i>
-            </button>
-        </div>
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <i data-lucide="check-circle-2" size="16" style="color: var(--uber-green);"></i>
+        <span id="toastMessage">Action completed</span>
     </div>
 
     <script>
@@ -407,6 +1160,31 @@
             return `${year}-${month}-${day}`;
         }
 
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2500);
+        }
+
+        function copyFilename() {
+            if (currentIndex >= 0 && allImages[currentIndex]) {
+                navigator.clipboard.writeText(allImages[currentIndex]);
+                showToast('Filename copied to clipboard');
+            }
+        }
+
+        async function handleLogout(e) {
+            if (e) e.preventDefault();
+            if (pollInterval) clearInterval(pollInterval);
+            try {
+                await fetch('/api/logout', { method: 'POST' });
+            } catch (err) {}
+            window.location.href = '/login';
+        }
+
         async function init() {
             await loadCameras();
             lucide.createIcons();
@@ -414,7 +1192,22 @@
             document.getElementById('dateSelect').addEventListener('change', (e) => {
                 currentDate = e.target.value;
                 localStorage.setItem('last_date', currentDate);
+                updateTodayBtnState();
                 loadImages(true);
+            });
+
+            document.getElementById('todayBtn').addEventListener('click', () => {
+                const todayStr = getLocalDateStr();
+                const select = document.getElementById('dateSelect');
+                if (Array.from(select.options).some(o => o.value === todayStr)) {
+                    select.value = todayStr;
+                    currentDate = todayStr;
+                    localStorage.setItem('last_date', currentDate);
+                    updateTodayBtnState();
+                    loadImages(true);
+                } else {
+                    showToast('No captures logged yet for today');
+                }
             });
 
             document.addEventListener('keydown', (e) => {
@@ -431,33 +1224,79 @@
                 if (camEl) {
                     await selectCamera(currentCamera, camEl, true);
                 } else {
-                    // Reset if saved camera no longer exists
                     currentCamera = null;
                     currentDate = null;
                 }
             }
 
-            // Start polling for new images
+            // If no camera selected yet, select first available camera
+            if (!currentCamera) {
+                const firstCam = document.querySelector('.camera-item');
+                if (firstCam) {
+                    await selectCamera(firstCam.dataset.id, firstCam, false);
+                }
+            }
+
+            // Start live polling every 5s
             pollInterval = setInterval(pollNewImages, 5000);
+        }
+
+        function updateTodayBtnState() {
+            const todayStr = getLocalDateStr();
+            const btn = document.getElementById('todayBtn');
+            if (currentDate === todayStr) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        }
+
+        async function manualRefresh() {
+            const btn = document.getElementById('refreshBtn');
+            btn.classList.add('spinning');
+            await loadImages(false);
+            setTimeout(() => {
+                btn.classList.remove('spinning');
+                showToast('Feed refreshed');
+            }, 600);
         }
 
         async function loadCameras() {
             try {
                 const res = await fetch(`${API_BASE}/cameras`);
+                if (res.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
                 const cameras = await res.json();
                 const list = document.getElementById('cameraList');
                 list.innerHTML = '';
 
-                cameras.forEach(cam => {
+                document.getElementById('cameraCount').textContent = `${cameras.length} Active`;
+
+                cameras.forEach((cam, index) => {
                     const el = document.createElement('div');
                     el.className = 'camera-item';
                     el.dataset.id = cam;
-                    el.innerHTML = `<i data-lucide="camera"></i><span>${cam.replace('camera_', 'Camera ')}</span>`;
+
+                    const formattedName = cam.replace(/^camera_/i, 'Camera ');
+
+                    el.innerHTML = `
+                        <div class="camera-item-left">
+                            <div class="camera-icon-wrapper">
+                                <i data-lucide="video" size="18"></i>
+                            </div>
+                            <span class="camera-title">${formattedName}</span>
+                        </div>
+                        <div class="camera-status-dot"></div>
+                    `;
                     el.onclick = () => selectCamera(cam, el);
                     list.appendChild(el);
                 });
                 lucide.createIcons();
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                console.error(e);
+            }
         }
 
         async function selectCamera(cam, el, isInitial = false) {
@@ -466,58 +1305,97 @@
             document.querySelectorAll('.camera-item').forEach(i => i.classList.remove('active'));
             el.classList.add('active');
 
-            document.getElementById('cameraNameDisplay').textContent = cam.replace('camera_', 'Camera ');
-            document.getElementById('cameraStatus').classList.add('active');
+            const formattedName = cam.replace(/^camera_/i, 'Camera ');
+            document.getElementById('displayCameraTitle').textContent = formattedName;
 
             try {
                 const res = await fetch(`${API_BASE}/cameras/${cam}/dates`);
+                if (res.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
                 const dates = await res.json();
                 const select = document.getElementById('dateSelect');
                 select.innerHTML = '<option value="">Select Date</option>';
+
+                const todayStr = getLocalDateStr();
+
                 dates.forEach(d => {
                     const opt = document.createElement('option');
-                    opt.value = d; opt.textContent = d;
+                    opt.value = d;
+                    opt.textContent = (d === todayStr) ? `${d} (Today)` : d;
                     select.appendChild(opt);
                 });
                 select.disabled = false;
 
                 if (isInitial && currentDate && dates.includes(currentDate)) {
                     select.value = currentDate;
+                } else if (dates.includes(todayStr)) {
+                    currentDate = todayStr;
+                    select.value = currentDate;
+                    localStorage.setItem('last_date', currentDate);
                 } else if (dates.length > 0) {
                     currentDate = dates[0];
                     select.value = currentDate;
                     localStorage.setItem('last_date', currentDate);
                 }
 
+                updateTodayBtnState();
                 loadImages(true);
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                console.error(e);
+            }
         }
 
         async function loadImages(showSpinner = false) {
             if (!currentCamera || !currentDate) return;
 
+            const grid = document.getElementById('imageGrid');
+            const initialState = document.getElementById('initialState');
+
             if (showSpinner) {
-                document.getElementById('initialState').style.display = 'none';
-                document.getElementById('imageGrid').innerHTML = '<div class="spinner"></div>';
+                initialState.style.display = 'none';
+                grid.innerHTML = '<div id="gridLoadingSpinner" style="grid-column: 1/-1; display:flex; justify-content:center; padding: 60px;"><div class="spinner"></div></div>';
             }
 
             try {
                 const res = await fetch(`${API_BASE}/cameras/${currentCamera}/dates/${currentDate}/images`);
+                if (res.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
                 const newImages = await res.json();
 
-                const grid = document.getElementById('imageGrid');
-                if (showSpinner) grid.innerHTML = '';
+                const initialLoader = document.getElementById('gridLoadingSpinner');
+                if (initialLoader) initialLoader.remove();
+
+                if (newImages.length === 0) {
+                    initialState.style.display = 'flex';
+                    initialState.innerHTML = `
+                        <div class="empty-icon-circle">
+                            <i data-lucide="shield-check" size="32" style="color: var(--uber-green);"></i>
+                        </div>
+                        <h3>No Intrusions Detected</h3>
+                        <p>No activity recorded for ${currentCamera.replace('_', ' ')} on ${currentDate}. All zones secure.</p>
+                    `;
+                    lucide.createIcons();
+                    document.getElementById('imageCountText').innerHTML = `<span class="num">0</span> Captures`;
+                    allImages = [];
+                    return;
+                }
+
+                initialState.style.display = 'none';
 
                 const currentIds = new Set(newImages.map(img => `img-${img.replace(/[^a-zA-Z0-9]/g, '-')}`));
 
-                // 1. Remove images that are no longer on the server
+                // 1. Remove obsolete elements
                 Array.from(grid.children).forEach(child => {
                     if (child.id && !currentIds.has(child.id)) {
                         child.remove();
                     }
                 });
 
-                // 2. Add new images that aren't in the grid yet
+                // 2. Prepend newly added detections
                 [...newImages].reverse().forEach(img => {
                     const id = `img-${img.replace(/[^a-zA-Z0-9]/g, '-')}`;
                     if (!document.getElementById(id)) {
@@ -528,38 +1406,81 @@
                 });
 
                 allImages = newImages;
-                document.getElementById('imageCount').textContent = `${allImages.length} Captures`;
-                document.getElementById('initialState').style.display = 'none';
+                document.getElementById('imageCountText').innerHTML = `<span class="num">${allImages.length}</span> Captures`;
 
-                const spinner = grid.querySelector('.spinner');
-                if (spinner) spinner.remove();
+                lucide.createIcons();
+            } catch (e) {
+                console.error(e);
+            }
+        }
 
-            } catch (e) { console.error(e); }
+        function parseImageDetails(img) {
+            // Expected format: det_YYYY-MM-DD HH:MM:SS.ffffff_hash_worker.jpg
+            let timeFormatted = 'Alert';
+            let exactTime = '';
+            let hash = '';
+            let worker = '';
+
+            try {
+                const parts = img.split('_');
+                if (parts.length >= 2) {
+                    const dt = parts[1];
+                    if (dt.includes(' ')) {
+                        const timeOnly = dt.split(' ')[1];
+                        exactTime = timeOnly;
+                        timeFormatted = timeOnly.split('.')[0];
+                    } else {
+                        exactTime = dt;
+                        timeFormatted = dt.split('.')[0];
+                    }
+                }
+                if (parts.length >= 3) {
+                    hash = parts[2];
+                }
+                if (parts.length >= 4) {
+                    worker = parts[3].replace(/\.[^/.]+$/, "");
+                }
+            } catch (err) {}
+
+            return {
+                timeFormatted: timeFormatted || 'Alert',
+                exactTime: exactTime || timeFormatted,
+                hash: hash || 'detected',
+                worker: worker || 'node',
+                filename: img
+            };
         }
 
         function createImageCard(img) {
             const url = `/images/${currentCamera}/${currentDate}/${img}`;
-            const parts = img.split('_');
-            const timePart = parts[1] || '';
-            const timeOnly = timePart.includes(' ') ? timePart.split(' ')[1].split('.')[0] : 'Unknown';
+            const meta = parseImageDetails(img);
 
             const card = document.createElement('div');
             card.className = 'image-card';
             card.innerHTML = `
                 <div class="image-wrapper">
-                    <div class="spinner" style="position:absolute"></div>
-                    <img src="${url}" loading="lazy">
-                </div>
-                <div class="card-footer">
-                    <span class="timestamp">${timeOnly}</span>
-                    <div class="meta-tags"><span class="tag">AI Match</span></div>
+                    <span class="card-top-pill">
+                        <i data-lucide="clock" size="12"></i>
+                        <span>${meta.timeFormatted}</span>
+                    </span>
+                    <div class="card-img-spinner" style="position: absolute;">
+                        <div class="spinner"></div>
+                    </div>
+                    <img src="${url}" loading="lazy" alt="Intruder Capture">
+                    <div class="card-hover-hint">
+                        <i data-lucide="maximize-2" size="16"></i>
+                    </div>
                 </div>
             `;
 
             const imgEl = card.querySelector('img');
             imgEl.onload = () => {
                 imgEl.classList.add('loaded');
-                const s = card.querySelector('.spinner');
+                const s = card.querySelector('.card-img-spinner');
+                if (s) s.remove();
+            };
+            imgEl.onerror = () => {
+                const s = card.querySelector('.card-img-spinner');
                 if (s) s.remove();
             };
 
@@ -567,21 +1488,13 @@
                 const actualIndex = allImages.indexOf(img);
                 openLightbox(actualIndex);
             };
-            return card;
-        }
 
-        function renderGrid() {
-            // This is now just a fallback, loadImages handles the heavy lifting
-            loadImages(true);
+            return card;
         }
 
         async function pollNewImages() {
             if (!currentCamera || !currentDate) return;
-
-            // For security/live monitoring, we should poll if it's "today"
-            // Using a more robust local date check
             const localToday = getLocalDateStr();
-
             if (currentDate === localToday) {
                 await loadImages(false);
             }
@@ -590,13 +1503,27 @@
         function openLightbox(index) {
             currentIndex = index;
             const img = allImages[index];
+            if (!img) return;
+
             const url = `/images/${currentCamera}/${currentDate}/${img}`;
+            const meta = parseImageDetails(img);
+            const cameraName = currentCamera ? currentCamera.replace(/^camera_/i, 'Camera ') : 'Camera';
 
             document.getElementById('mainImg').src = url;
-            document.getElementById('lightboxTime').textContent = img.split('_')[1]?.split('.')[0] || 'Image';
-            document.getElementById('lightboxFile').textContent = img;
+            document.getElementById('lightboxTimeTitle').textContent = `${meta.timeFormatted} Detection`;
+            document.getElementById('lightboxCameraBadge').textContent = `${cameraName} • ${currentDate}`;
+            document.getElementById('lightboxFilename').textContent = img;
+            document.getElementById('lightboxExactTime').textContent = `${currentDate} at ${meta.exactTime}`;
+            document.getElementById('lightboxHash').textContent = meta.hash;
+            document.getElementById('lightboxWorker').textContent = meta.worker;
+
+            const downloadBtn = document.getElementById('lightboxDownloadBtn');
+            downloadBtn.href = url;
+            downloadBtn.download = img;
+
             document.getElementById('lightbox').classList.add('active');
             document.body.style.overflow = 'hidden';
+            lucide.createIcons();
         }
 
         function closeLightbox() {

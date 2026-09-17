@@ -193,6 +193,10 @@ services:
       - .env
     volumes:
       - ./captures:/app/captures:ro
+      - ./viewer_service/index.html:/app/index.html:ro
+      - ./viewer_service/login.html:/app/login.html:ro
+      - ./viewer_service/viewer_service.py:/app/viewer_service.py:ro
+      - ./viewer_service/uber_login_bg.jpg:/app/uber_login_bg.jpg:ro
     ports:
       - "8085:8080"
     environment:

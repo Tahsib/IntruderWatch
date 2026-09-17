@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sign In | IntruderWatch</title>
+    <!-- Fonts: Plus Jakarta Sans for crisp Uber-style geometric typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            /* Uber Base Color Palette */
+            --uber-black: #000000;
+            --uber-surface: #121212;
+            --uber-surface-card: #161616;
+            --uber-surface-hover: #1f1f1f;
+            --uber-border: #262626;
+            --uber-border-strong: #383838;
+            --uber-white: #ffffff;
+            --uber-gray-100: #f6f6f6;
+            --uber-gray-300: #d4d4d4;
+            --uber-gray-500: #a3a3a3;
+            --uber-gray-700: #737373;
+            --uber-green: #06c167;
+            --uber-green-glow: rgba(6, 193, 103, 0.3);
+            --uber-red: #e11900;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-pill: 9999px;
+            --font-main: 'Plus Jakarta Sans', 'Uber Move', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-mono: 'Space Mono', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--uber-black);
+            color: var(--uber-white);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            letter-spacing: -0.01em;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Uber Scenery Cardboard Illustration Background */
+        .scenery-container {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+            background-color: var(--uber-black);
+        }
+
+        .scenery-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            opacity: 0.90;
+            transform: scale(1.02);
+            filter: contrast(1.08) brightness(1.06);
+        }
+
+        /* Ambient Vignette & Gradient Overlay for readability */
+        .scenery-overlay {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0.50) 65%, rgba(0, 0, 0, 0.90) 100%),
+                        linear-gradient(to bottom, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0.45) 100%);
+            z-index: 1;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 26px;
+            animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Brand Header */
+        .brand-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 10px;
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.75rem;
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            color: var(--uber-white);
+            text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+        }
+
+        .brand-logo span.light {
+            font-weight: 400;
+            color: var(--uber-gray-500);
+        }
+
+        .brand-shield {
+            width: 46px;
+            height: 46px;
+            background: rgba(22, 22, 26, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--uber-white);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+        }
+
+        .brand-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: rgba(18, 18, 22, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-pill);
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
+            color: var(--uber-gray-300);
+        }
+
+        .brand-badge .badge-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--uber-green);
+            box-shadow: 0 0 8px var(--uber-green);
+        }
+
+        /* Beautiful Glassmorphic Login Card */
+        .login-card {
+            position: relative;
+            background-color: rgba(14, 15, 18, 0.82);
+            backdrop-filter: blur(32px) saturate(160%);
+            -webkit-backdrop-filter: blur(32px) saturate(160%);
+            border: 1px solid rgba(255, 255, 255, 0.13);
+            border-radius: 20px;
+            padding: 38px 34px;
+            box-shadow:
+                inset 0 1px 1px 0 rgba(255, 255, 255, 0.18),
+                0 0 0 1px rgba(255, 255, 255, 0.04),
+                0 24px 60px -12px rgba(0, 0, 0, 0.9),
+                0 12px 24px -6px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+            gap: 22px;
+            overflow: hidden;
+        }
+
+        /* Specular Top Rim Highlight */
+        .login-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 15%;
+            right: 15%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+        }
+
+        .card-header {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .card-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            letter-spacing: -0.035em;
+            color: var(--uber-white);
+        }
+
+        .card-subtitle {
+            font-size: 0.85rem;
+            color: var(--uber-gray-500);
+            line-height: 1.4;
+        }
+
+        /* Error Banner */
+        .error-banner {
+            display: none;
+            background: rgba(225, 25, 0, 0.15);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(225, 25, 0, 0.45);
+            color: #ff6b6b;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .error-banner.visible {
+            display: flex;
+            animation: shake 0.3s ease;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-4px); }
+            40%, 80% { transform: translateX(4px); }
+        }
+
+        /* Form Inputs with Leading Icons */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        .form-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--uber-gray-500);
+            padding-left: 2px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 16px;
+            color: #6b7280;
+            pointer-events: none;
+            transition: color 0.2s ease;
+            flex-shrink: 0;
+            z-index: 2;
+        }
+
+        .input-wrapper:focus-within .input-icon {
+            color: #9ca3af;
+        }
+
+        .uber-input {
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.035);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            border-radius: 12px;
+            color: #d1d5db;
+            font-family: var(--font-main);
+            font-size: 0.95rem;
+            font-weight: 500;
+            padding: 14px 16px 14px 46px;
+            outline: none;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .uber-input::placeholder {
+            color: #525866;
+        }
+
+        .uber-input:hover {
+            border-color: rgba(255, 255, 255, 0.18);
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .uber-input:focus {
+            color: #e5e7eb;
+            border-color: rgba(255, 255, 255, 0.32);
+            background-color: rgba(255, 255, 255, 0.065);
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06), 0 4px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        .input-toggle-btn {
+            position: absolute;
+            right: 14px;
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s ease;
+            z-index: 2;
+        }
+
+        .input-toggle-btn:hover {
+            color: #d1d5db;
+        }
+
+        /* Uber Signature Button - Soft Dimmed Platinum */
+        .uber-submit-btn {
+            background-color: #d4d8df;
+            color: #121417;
+            font-family: var(--font-main);
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            border-radius: 12px;
+            padding: 14px 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            margin-top: 6px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+        }
+
+        .uber-submit-btn:hover {
+            background-color: #e2e5eb;
+            color: #0b0c0e;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+        }
+
+        .uber-submit-btn:hover #btnArrow {
+            transform: translateX(3px);
+        }
+
+        #btnArrow {
+            transition: transform 0.2s ease;
+        }
+
+        .uber-submit-btn:active {
+            transform: translateY(0);
+            background-color: #c9cdd4;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        .uber-submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-spinner {
+            display: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(0, 0, 0, 0.25);
+            border-top-color: #000000;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+    </style>
+</head>
+<body>
+    <!-- Uber App Style Stylized Scenery Background -->
+    <div class="scenery-container">
+        <img src="/login-bg.jpg" alt="City Street Scenery" class="scenery-img">
+        <div class="scenery-overlay"></div>
+    </div>
+
+    <!-- Login Dialog Container -->
+    <div class="login-container">
+        <div class="brand-section">
+            <div class="brand-logo">
+                <div class="brand-shield">
+                    <i data-lucide="shield-check" size="24"></i>
+                </div>
+                <div>Intruder<span class="light">Watch</span></div>
+            </div>
+            <div class="brand-badge">
+                <span class="badge-dot"></span>
+                <span>SECURE CONSOLE</span>
+            </div>
+        </div>
+
+        <div class="login-card">
+            <div class="card-header">
+                <h1 class="card-title">Sign In</h1>
+                <p class="card-subtitle">Enter your credentials to monitor camera feeds</p>
+            </div>
+
+            <div class="error-banner" id="errorBanner">
+                <i data-lucide="alert-circle" size="18" style="flex-shrink: 0;"></i>
+                <span id="errorMessage">Invalid username or password</span>
+            </div>
+
+            <form id="loginForm" style="display: flex; flex-direction: column; gap: 18px;">
+                <div class="form-group">
+                    <label class="form-label" for="username">Username</label>
+                    <div class="input-wrapper">
+                        <i data-lucide="user" size="18" class="input-icon"></i>
+                        <input
+                            type="text"
+                            id="username"
+                            class="uber-input"
+                            placeholder="Enter username"
+                            required
+                            autocomplete="username"
+                            autofocus
+                        >
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <div class="input-wrapper">
+                        <i data-lucide="lock" size="18" class="input-icon"></i>
+                        <input
+                            type="password"
+                            id="password"
+                            class="uber-input"
+                            placeholder="Enter password"
+                            required
+                            autocomplete="current-password"
+                        >
+                        <button type="button" class="input-toggle-btn" id="togglePassword" title="Toggle password visibility">
+                            <i data-lucide="eye" size="18" id="eyeIcon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="uber-submit-btn" id="submitBtn">
+                    <div class="btn-spinner" id="btnSpinner"></div>
+                    <span id="btnText">Sign In</span>
+                    <i data-lucide="arrow-right" size="18" id="btnArrow"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // Toggle password visibility
+        const passwordInput = document.getElementById('password');
+        const toggleBtn = document.getElementById('togglePassword');
+        const eyeIcon = document.getElementById('eyeIcon');
+
+        toggleBtn.addEventListener('click', () => {
+            const isPassword = passwordInput.type === 'password';
+            passwordInput.type = isPassword ? 'text' : 'password';
+            eyeIcon.setAttribute('data-lucide', isPassword ? 'eye-off' : 'eye');
+            lucide.createIcons();
+        });
+
+        // Form submission
+        const form = document.getElementById('loginForm');
+        const errorBanner = document.getElementById('errorBanner');
+        const errorMessage = document.getElementById('errorMessage');
+        const submitBtn = document.getElementById('submitBtn');
+        const btnSpinner = document.getElementById('btnSpinner');
+        const btnText = document.getElementById('btnText');
+        const btnArrow = document.getElementById('btnArrow');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            errorBanner.classList.remove('visible');
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!username || !password) return;
+
+            // Loading state
+            submitBtn.disabled = true;
+            btnSpinner.style.display = 'block';
+            btnArrow.style.display = 'none';
+            btnText.textContent = 'Verifying...';
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (res.ok) {
+                    btnText.textContent = 'Success';
+                    window.location.href = '/';
+                } else {
+                    const data = await res.json().catch(() => ({}));
+                    errorMessage.textContent = data.detail || 'Invalid username or password';
+                    errorBanner.classList.add('visible');
+                    resetButton();
+                }
+            } catch (err) {
+                errorMessage.textContent = 'Connection error. Please try again.';
+                errorBanner.classList.add('visible');
+                resetButton();
+            }
+        });
+
+        function resetButton() {
+            submitBtn.disabled = false;
+            btnSpinner.style.display = 'none';
+            btnArrow.style.display = 'inline-block';
+            btnText.textContent = 'Sign In';
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>
