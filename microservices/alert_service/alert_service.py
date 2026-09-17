@@ -62,6 +62,20 @@ VIEWER_PUBLIC_URL = f"https://watch.{PUBLIC_DOMAIN}"
 bypass_key = "ALERT_BYPASS_" + "TOKEN"
 IMAGE_ACCESS_CODE = os.getenv(bypass_key)
 
+# Configure ntfy authentication on HTTP session
+NTFY_USER = os.getenv("NTFY_ALERT_SERVICE_USER") or os.getenv("NTFY_USER")
+NTFY_PASSWORD = os.getenv("NTFY_ALERT_SERVICE_PASSWORD") or os.getenv("NTFY_PASSWORD")
+NTFY_AUTH_TOKEN = os.getenv("NTFY_AUTH_TOKEN")
+
+if NTFY_AUTH_TOKEN:
+    http_session.headers.update({"Authorization": f"Bearer {NTFY_AUTH_TOKEN}"})
+    logging.info("ntfy client authenticated via Bearer token")
+elif NTFY_USER and NTFY_PASSWORD:
+    http_session.auth = (NTFY_USER, NTFY_PASSWORD)
+    logging.info(f"ntfy client authenticated via Basic Auth (user: {NTFY_USER})")
+else:
+    logging.warning("No ntfy authentication configured; requests will be unauthenticated")
+
 # --- Flask Webhook Receiver ---
 app = Flask(__name__)
 

@@ -137,8 +137,19 @@ graph TD
   - **Visual:** Delivers high-res detection images via self-hosted **ntfy** topics.
 - **Suppression Logic:** Enforces a **60s global cooldown** to prevent notification fatigue during ongoing incidents.
 - **Alert Beautifier Webhook:** Receives infrastructure and hardware alerts from Prometheus Alertmanager and formats clean, human-readable push notifications to `ntfy`.
+- **Authenticated Dispatch:** Authenticates against `ntfy` using dedicated least-privilege credentials (`write-only` role) to ensure alerts cannot be intercepted or spoofed.
 
 ---
+
+### 3.1 Push Notification Server (`ntfy`)
+
+**Purpose:** Hosts a self-contained, real-time push notification and subscription hub.
+
+**Security & Access Control:**
+- **Zero Anonymous Access:** Enforces `auth-default-access: deny-all`. Unauthenticated clients on the internet cannot list, subscribe to, or publish notifications.
+- **Declarative User Provisioning:** Automatically provisions user accounts and ACLs on startup via [`ntfy/entrypoint.sh`](file:///home/rahul/Documents/codes/intruder-detection/microservices/ntfy/entrypoint.sh).
+- **Least Privilege:** Internal services (`alert_service`) operate under write-only topic permissions, while administrative users possess read-write capabilities for mobile/web push reception.
+- **Proxy Integrity:** Runs with `behind-proxy: true` to ensure real client IPs are recorded from Cloudflare headers.
 
 ### 4. Secure Viewer Service (`viewer_service/`)
 
