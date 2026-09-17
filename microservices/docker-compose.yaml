@@ -185,6 +185,8 @@ services:
       - NTFY_AUTH_FILE=/var/cache/ntfy/auth.db
       - NTFY_AUTH_DEFAULT_ACCESS=deny-all
       - NTFY_BEHIND_PROXY=true
+      - NTFY_ENABLE_LOGIN=true
+      - NTFY_REQUIRE_LOGIN=true
       - NTFY_ADMIN_USER=${NTFY_ADMIN_USER:-admin}
       - NTFY_ADMIN_PASSWORD=${NTFY_ADMIN_PASSWORD}
       - NTFY_ALERT_SERVICE_USER=${NTFY_ALERT_SERVICE_USER:-alert_service}
