@@ -19,9 +19,7 @@ VIEWER_PASSWORD = os.getenv("VIEWER_PASSWORD", "password123")
 ALERT_BYPASS_TOKEN = os.getenv("ALERT_BYPASS_TOKEN")
 
 # Session Token Configuration (HMAC-signed tokens)
-SESSION_SECRET = os.getenv("SESSION_SECRET")
-if not SESSION_SECRET:
-    SESSION_SECRET = hashlib.sha256(f"{VIEWER_USERNAME}:{VIEWER_PASSWORD}:intruderwatch".encode()).hexdigest()
+SESSION_SECRET = os.getenv("SESSION_SECRET") or secrets.token_hex(32)
 SESSION_SECRET_BYTES = SESSION_SECRET.encode()
 SESSION_MAX_AGE = 7 * 86400  # 7 days
 
@@ -52,6 +50,7 @@ def verify_session_token(token: str) -> str | None:
             if secrets.compare_digest(username, VIEWER_USERNAME):
                 return username
     except Exception:
+        # Silently ignore invalid base64, expired, or malformed session tokens
         return None
     return None
 
@@ -81,6 +80,7 @@ def get_authenticated_user(request: Request) -> str | None:
             if secrets.compare_digest(username, VIEWER_USERNAME) and secrets.compare_digest(password, VIEWER_PASSWORD):
                 return username
         except Exception:
+            # Silently ignore malformed or non-ASCII Basic Auth headers
             pass
 
     return None
@@ -193,7 +193,8 @@ async def api_login(payload: LoginRequest, response: Response):
             detail="Invalid username or password",
         )
 
-    token = create_session_token(payload.username)
+    # Use validated server constant to prevent cookie injection taint
+    token = create_session_token(VIEWER_USERNAME)
     response.set_cookie(
         key="session_token",
         value=token,
@@ -202,7 +203,7 @@ async def api_login(payload: LoginRequest, response: Response):
         samesite="lax",
         path="/",
     )
-    return {"status": "ok", "user": payload.username}
+    return {"status": "ok", "user": VIEWER_USERNAME}
 
 
 @app.get("/logout")
