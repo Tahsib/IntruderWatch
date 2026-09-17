@@ -147,6 +147,9 @@ services:
     environment:
       NTFY_BASE_URL: ${NTFY_BASE_URL:-http://localhost:8081}
       NTFY_INTERNAL_URL: ${NTFY_INTERNAL_URL:-http://ntfy}
+      NTFY_ALERT_SERVICE_USER: ${NTFY_ALERT_SERVICE_USER:-alert_service}
+      NTFY_ALERT_SERVICE_PASSWORD: ${NTFY_ALERT_SERVICE_PASSWORD}
+      NTFY_AUTH_TOKEN: ${NTFY_AUTH_TOKEN:-}
       VIEWER_BASE_URL: ${VIEWER_BASE_URL}
       PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:-tahsib.dev}
       ALERT_BYPASS_TOKEN: ${ALERT_BYPASS_TOKEN}
@@ -155,6 +158,8 @@ services:
     restart: unless-stopped
     depends_on:
       rabbitmq:
+        condition: service_healthy
+      ntfy:
         condition: service_healthy
     deploy:
       resources:
@@ -167,6 +172,7 @@ services:
   ntfy:
     image: binwiederhier/ntfy:latest
     container_name: ntfy
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
     command:
       - serve
     environment:
@@ -176,10 +182,23 @@ services:
       - NTFY_ATTACHMENT_TOTAL_SIZE_LIMIT=1G
       - NTFY_ATTACHMENT_FILE_SIZE_LIMIT=10M
       - NTFY_ATTACHMENT_EXPIRY_DURATION=24h
+      - NTFY_AUTH_FILE=/var/cache/ntfy/auth.db
+      - NTFY_AUTH_DEFAULT_ACCESS=deny-all
+      - NTFY_BEHIND_PROXY=true
+      - NTFY_ADMIN_USER=${NTFY_ADMIN_USER:-admin}
+      - NTFY_ADMIN_PASSWORD=${NTFY_ADMIN_PASSWORD}
+      - NTFY_ALERT_SERVICE_USER=${NTFY_ALERT_SERVICE_USER:-alert_service}
+      - NTFY_ALERT_SERVICE_PASSWORD=${NTFY_ALERT_SERVICE_PASSWORD}
     volumes:
       - ntfy-data:/var/cache/ntfy
+      - ./ntfy/entrypoint.sh:/entrypoint.sh:ro
     ports:
       - "8081:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80/v1/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
     networks:
       - detection
