@@ -1,15 +1,26 @@
+.PHONY: rebuild restart restart-monitoring reset-prometheus test-go test-python test
+
 rebuild:
-	DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker-compose down
-	DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker-compose up --build -d
+	docker compose down
+	docker compose up --build -d
 
 restart:
-	DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker-compose down
-	DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker-compose up --build -d
+	docker compose down
+	docker compose up -d
 
 restart-monitoring:
-	docker-compose stop prometheus grafana
-	docker-compose rm -f prometheus grafana
-	docker-compose up -d --force-recreate prometheus grafana
+	docker compose stop prometheus grafana
+	docker compose rm -f prometheus grafana
+	docker compose up -d --force-recreate prometheus grafana
 
 reset-prometheus:
 	./fix_prometheus_data.sh
+
+test-go:
+	cd frame_capturer && go test -v -race ./...
+
+test-python:
+	ruff check .
+	ruff format --check .
+
+test: test-go test-python
