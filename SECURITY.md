@@ -5,24 +5,21 @@
 | Version | Supported          |
 | ------- | ------------------ |
 | `main`  | :white_check_mark: |
-| < 1.0   | :x:                |
 
 ## Reporting a Vulnerability
 
-We take the security of IntruderWatch seriously. If you discover a security vulnerability, **please do not open a public GitHub issue**.
+If you discover a security vulnerability in IntruderWatch, **please do not open a public issue**.
 
-### Reporting Channels
+### Reporting Channel
 
-1. **GitHub Private Vulnerability Reporting (Preferred):**
-   Submit an advisory privately through the [GitHub Security Advisory Tab](https://github.com/Tahsib/IntruderWatch/security/advisories/new).
-2. **Direct Contact:**
-   If you are unable to use GitHub Security Advisories, contact the project maintainers directly via email.
+Submit vulnerability reports privately through GitHub's [Private Vulnerability Reporting](https://github.com/Tahsib/IntruderWatch/security/advisories/new).
 
 Please include:
-- A description of the vulnerability and its potential impact.
-- Step-by-step instructions or proof-of-concept to reproduce the issue.
+- A description of the vulnerability and potential impact.
+- Step-by-step reproduction steps or minimal proof-of-concept.
 - Affected microservice(s) and environment configurations.
 
 ### Response Timeline
-- We will acknowledge receipt of your report within 48 hours.
-- A fix or mitigation will be developed and released through a private patch prior to public disclosure.
+
+- Reports will be acknowledged within 48 hours.
+- Validated issues will be resolved in a private advisory fork prior to public release.
