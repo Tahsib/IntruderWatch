@@ -13,9 +13,9 @@ graph TD
     end
 
     subgraph "Ingestion Engine (Intel i7 CPU)"
-        FC[Frame Capturers: 8 Channels]
-        MSE[MSE Motion Filtering]
-        ENC[JPEG Encoder: 85%]
+        FC["Frame Capturers: Go Ingestion Engine"]
+        MB["Macroblock SAD & Zone Masking"]
+        ENC["JPEG Encoder: 85%"]
     end
 
     subgraph "Message Broker (RAM)"
@@ -50,8 +50,8 @@ graph TD
 
     %% Ingestion Flow
     C1 -- "RTSP" --> FC
-    FC -- "Raw BGR24" --> MSE
-    MSE -- "Motion Detected" --> ENC
+    FC -- "Raw YUV420p" --> MB
+    MB -- "Motion Detected" --> ENC
     ENC -- "Base64 JPEG" --> RMQ_F
 
     %% Detection Flow
@@ -79,12 +79,13 @@ graph TD
 
 ## 🚀 Key Features (High Efficiency Mode)
 
+- **Zero-Allocation Go Ingestion**: High-throughput Go microservice with zero-allocation buffers, slashing capture RAM usage by **~74%** (~315 MB down to ~80 MB per camera).
+- **Macroblock Motion Pre-Filtering**: 1080p spatial **$32 \times 32$ Macroblock SAD** motion engine with pre-compiled **exclusion zone masking** (ignoring DVR/NVR OSD clocks) and ambient lighting shift rejection.
 - **Core Inference Engine**: Upgraded to **YOLO11 Medium (v11m)** for elite accuracy with significantly reduced thermal impact.
 - **Hardware Accelerated**: Full **AMD GPU acceleration** via ROCm, enabling real-time high-resolution inference.
 - **Unified Alerting Stack**: Professional-grade monitoring using **Prometheus Alertmanager** and **ntfy** for instant, beautifully formatted notifications.
 - **Secure Remote Access**: Integrated **Cloudflare Tunnel** for encrypted, zero-port-forwarding access to camera feeds and alerts from anywhere.
 - **Real-Time Push**: Configured with upstream push servers for **instant mobile delivery** on iOS and Android.
-- **Motion Pre-Filtering**: Advanced **MSE (Mean Squared Error)** filtering on the CPU to ignore sensor noise and prevent redundant GPU work.
 - **High-Fidelity Source**: Captures at **1080P (1920x1080)** and processes at **1280px** inference resolution.
 - **Master Command Center**: Industry-standard **Grafana dashboard** with real-time GPU junction temperature and power draw monitoring.
 
@@ -93,8 +94,8 @@ graph TD
 ## 📂 Repository Structure
 
 **Microservices** (Current):
-- `microservices/frame_capturer/` - 1080P/6FPS RTSP capture via ffmpeg.
-- `microservices/human_detector/` - GPU-accelerated YOLO11L detection.
+- `microservices/frame_capturer/` - High-performance Go ingestion engine with macroblock motion detection, exclusion masking, and live snapshot endpoint.
+- `microservices/human_detector/` - GPU-accelerated YOLO11 Medium detection.
 - `microservices/alert_service/` - Unified notification engine with "Alert Beautifier" logic.
 - `microservices/viewer_service/` - FastAPI web UI for secure detection browsing.
 - `microservices/tunnel/` - Cloudflare Tunnel for secure remote access.
