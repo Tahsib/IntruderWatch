@@ -16,6 +16,7 @@ x-frame-capturer: &frame-capturer
     LOG_LEVEL: INFO
     JPEG_QUALITY: 85
     FRAME_SLEEP: 0.05
+    EXCLUDE_ZONES: ${EXCLUDE_ZONES:-top-right-clock}
   restart: unless-stopped
   expose:
     - "8001"

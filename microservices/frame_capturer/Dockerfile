@@ -1,36 +1,34 @@
-# Stage 1: Builder
-FROM python:3.14-slim AS builder
+FROM golang:alpine AS builder
+
+WORKDIR /app
+ENV GOTOOLCHAIN=auto
+
+COPY frame_capturer/go.mod frame_capturer/go.sum ./
+RUN go mod download
+
+COPY frame_capturer/*.go ./
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o frame_capturer .
+
+# Stage 2: Final Minimal Runtime
+FROM alpine:3.20
 
 WORKDIR /app
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+# Install runtime dependencies: ffmpeg, tzdata, ca-certificates
+RUN apk add --no-cache ffmpeg tzdata ca-certificates \
+    && cp /usr/share/zoneinfo/Asia/Dhaka /etc/localtime \
+    && echo "Asia/Dhaka" > /etc/timezone
 
-COPY frame_capturer/requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+# Copy compiled Go binary from builder
+COPY --from=builder /app/frame_capturer .
 
-# Stage 2: Final
-FROM python:3.14-slim
-
-WORKDIR /app
-
-# Install runtime dependencies: ffmpeg and tzdata
-RUN apt-get update && apt-get install -y --no-install-recommends tzdata ffmpeg \
-    && ln -snf /usr/share/zoneinfo/Asia/Dhaka /etc/localtime \
-    && echo 'Asia/Dhaka' > /etc/timezone \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Copy installed packages from builder
-COPY --from=builder /install /usr/local
-
-# Copy application code
-COPY shared/ ./shared/
-COPY frame_capturer/ .
-
-# Use non-root user
-RUN useradd -m appuser && chown -R appuser:appuser /app
+# Non-root user for security
+RUN adduser -D -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8001
 
-CMD ["python", "frame_capturer.py"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD wget -q --spider http://127.0.0.1:8001/healthz || exit 1
+
+ENTRYPOINT ["./frame_capturer"]
