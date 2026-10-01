@@ -4,7 +4,7 @@
 
 IntruderWatch is a high-performance intruder detection system designed as a distributed set of microservices orchestrated via RabbitMQ. It captures high-fidelity frames from RTSP security cameras, performs surgical human detection using GPU-accelerated **YOLO11 Medium**, dispatches multi-channel alerts (Twilio + ntfy), and provides a secure web-based interface for visual audit.
 
-The architecture is engineered for high-end hardware, leveraging an **Intel i7-12700K** for ingestion and an **AMD RX 6800 XT** (via ROCm) for real-time detection inference.
+The architecture is engineered for high-throughput multi-camera surveillance environments, leveraging multi-core CPU ingestion alongside hardware-accelerated GPU inference (AMD ROCm / NVIDIA CUDA) for real-time intruder detection.
 
 ```mermaid
 graph TD
@@ -69,7 +69,7 @@ graph TD
     DISK -- "Secure Serve" --> VIEW
     VIEW & NTFY <--> TUNNEL
     TUNNEL <== "Outbound QUIC Tunnel" ==> CF
-    CF <== "watch.tahsib.dev / alerts.tahsib.dev" ==> PHONE
+    CF <== "viewer.yourdomain.com / alerts.yourdomain.com" ==> PHONE
 
     %% Observability Flow
     FC & DET & ALERT & VIEW & EXP -- "Metrics" --> PROM
@@ -102,7 +102,7 @@ graph TD
 **Primary Configuration:**
 | Variable | Description | Default |
 |---|---|---|
-| `STREAM_IP` | Camera/NVR Network Address | `192.168.50.88` |
+| `STREAM_IP` | Camera/NVR Network Address | `192.168.1.100` |
 | `CHANNEL` | Stream Channel Identifier | `1..8` |
 | `FPS` | Targeted Frame Rate | `3` |
 | `FRAME_WIDTH` | Capture Resolution (Width) | `1920 (1080P)` |
@@ -183,7 +183,7 @@ graph TD
 **Mechanism:**
 - Runs the lightweight official `cloudflare/cloudflared` daemon.
 - Establishes persistent, multiplexed **outbound QUIC (HTTP/3 over UDP)** connections to Cloudflare Edge servers.
-- Remotely routes traffic for `watch.tahsib.dev` $\to$ `viewer_service:8080` and `alerts.tahsib.dev` $\to$ `ntfy:80`.
+- Remotely routes traffic for `viewer.yourdomain.com` $\to$ `viewer_service:8080` and `alerts.yourdomain.com` $\to$ `ntfy:80`.
 - Eliminates the need for dynamic DNS, open router ports, or manual SSL certificate renewals.
 
 ---
