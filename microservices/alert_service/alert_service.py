@@ -228,7 +228,7 @@ def send_ntfy_photo(camera_id, timestamp, filename, human_count=1, max_confidenc
 
         conf_str = f" ({int(max_confidence * 100)}% conf)" if max_confidence > 0 else ""
         if human_count > 1:
-            title = f"🚨 INTRUDER: Camera {camera_id} ({human_count} Persons)"
+            title = f"INTRUDER: Camera {camera_id} ({human_count} Persons)"
             message = f"{human_count} persons detected{conf_str} at {clean_timestamp}"
             tags = "rotating_light,warning,camera"
         else:
@@ -238,14 +238,13 @@ def send_ntfy_photo(camera_id, timestamp, filename, human_count=1, max_confidenc
 
         headers = {
             "Title": title,
-            "Message": message,
             "Priority": "5",
             "Tags": tags,
             "Attach": image_url,
         }
 
-        # Simple POST with headers is best for URL-based attachments
-        response = http_session.post(url, headers=headers, timeout=15)
+        # Send UTF-8 message in body and metadata in ASCII headers
+        response = http_session.post(url, data=message.encode("utf-8"), headers=headers, timeout=15)
         response.raise_for_status()
 
         logging.info(f"ntfy private photo alert link sent for Camera {camera_id} (Token: [HIDDEN]).")

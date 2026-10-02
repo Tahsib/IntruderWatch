@@ -32,8 +32,9 @@ class TestAlertServiceEdgeCases(unittest.TestCase):
 
             mock_post.assert_called_once()
             headers = mock_post.call_args[1]["headers"]
+            data = mock_post.call_args[1]["data"].decode("utf-8")
             self.assertIn("3 Persons", headers["Title"])
-            self.assertIn("3 persons detected (95% conf)", headers["Message"])
+            self.assertIn("3 persons detected (95% conf)", data)
             self.assertEqual(headers["Priority"], "5")
 
     def test_single_person_alert_formatting(self):
@@ -52,8 +53,9 @@ class TestAlertServiceEdgeCases(unittest.TestCase):
             )
 
             headers = mock_post.call_args[1]["headers"]
+            data = mock_post.call_args[1]["data"].decode("utf-8")
             self.assertEqual(headers["Title"], "Intruder: Camera 2")
-            self.assertIn("Person detected (82% conf)", headers["Message"])
+            self.assertIn("Person detected (82% conf)", data)
 
     def test_legacy_payload_graceful_fallback(self):
         """Edge Case: Missing or zero confidence defaults gracefully without crash."""
@@ -71,9 +73,10 @@ class TestAlertServiceEdgeCases(unittest.TestCase):
             )
 
             headers = mock_post.call_args[1]["headers"]
+            data = mock_post.call_args[1]["data"].decode("utf-8")
             self.assertEqual(headers["Title"], "Intruder: Camera 3")
-            self.assertIn("Person detected", headers["Message"])
-            self.assertNotIn("% conf", headers["Message"])
+            self.assertIn("Person detected", data)
+            self.assertNotIn("% conf", data)
 
 
 if __name__ == "__main__":
