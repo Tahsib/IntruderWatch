@@ -269,8 +269,10 @@ def alert_service(queue_name):
             camera_id = data.get("camera", "unknown")
             timestamp = data.get("timestamp", "unknown")
             filename = data.get("filename", "")
-            human_count = int(data.get("human_count", 1))
-            max_confidence = float(data.get("max_confidence", 0.0))
+            raw_count = data.get("human_count")
+            human_count = int(raw_count) if raw_count is not None else 1
+            raw_conf = data.get("max_confidence")
+            max_confidence = float(raw_conf) if raw_conf is not None else 0.0
         except Exception:
             camera_id = "unknown"
             timestamp = "unknown"

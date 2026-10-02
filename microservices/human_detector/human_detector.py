@@ -81,9 +81,9 @@ class DetectionState:
 class AlertDispatcher:
     """Background worker for non-blocking disk writes and alert queue publishing."""
 
-    def __init__(self, save_quality: int):
+    def __init__(self, save_quality: int, queue_size: int = 50):
         self.save_quality = save_quality
-        self.queue = queue.Queue(maxsize=100)
+        self.queue = queue.Queue(maxsize=queue_size)
         self.connection = None
         self.channel = None
         self.thread = threading.Thread(target=self._worker, daemon=True, name="alert-dispatcher")
@@ -97,10 +97,42 @@ class AlertDispatcher:
         except queue.Full:
             logging.error("Alert dispatcher queue full; dropping alert to maintain real-time throughput.")
 
+    def _reset_channel(self):
+        try:
+            if self.channel and not self.channel.is_closed:
+                self.channel.close()
+        except Exception:
+            pass
+        try:
+            if self.connection and not self.connection.is_closed:
+                self.connection.close()
+        except Exception:
+            pass
+        self.channel = None
+        self.connection = None
+
     def _ensure_channel(self):
         if self.connection is None or self.connection.is_closed or self.channel is None or self.channel.is_closed:
             logging.info("Connecting alert dispatcher to RabbitMQ...")
             self.connection, self.channel = connect_rabbitmq(["alert_queue"])
+
+    def _publish_with_retry(self, alert_payload: dict, retries: int = 3) -> bool:
+        body = json.dumps(alert_payload)
+        for attempt in range(1, retries + 1):
+            try:
+                self._ensure_channel()
+                self.channel.basic_publish(
+                    exchange="",
+                    routing_key="alert_queue",
+                    body=body,
+                )
+                return True
+            except Exception as pub_err:
+                logging.warning(f"Publish to alert_queue failed (attempt {attempt}/{retries}): {pub_err}")
+                self._reset_channel()
+                if attempt < retries:
+                    time.sleep(0.5)
+        return False
 
     def _worker(self):
         while True:
@@ -113,12 +145,9 @@ class AlertDispatcher:
                     if not success:
                         logging.error(f"Failed to write image: {filename}")
 
-                    self._ensure_channel()
-                    self.channel.basic_publish(
-                        exchange="",
-                        routing_key="alert_queue",
-                        body=json.dumps(alert_payload),
-                    )
+                    published = self._publish_with_retry(alert_payload)
+                    if not published:
+                        logging.error(f"Failed to dispatch alert to queue after retries for {filename}")
 
                     camera_id = alert_payload.get("camera", "?")
                     count = alert_payload.get("human_count", 1)
@@ -312,7 +341,11 @@ def consume_frames(queue_name: str, state: DetectionState | None = None):
     except Exception as e:
         logging.error(f"Consumer error: {e}")
     finally:
-        connection.close()
+        state.is_ready = False
+        try:
+            connection.close()
+        except Exception:
+            pass
 
 
 def start_http_service(port: int, state: DetectionState):
