@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: 'microservices/frame_capturer/go.mod'
           cache-dependency-path: microservices/frame_capturer/go.sum
@@ -71,7 +71,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Run Hadolint
-        uses: hadolint/hadolint-action@v3.4.0
+        uses: hadolint/hadolint-action@v3.5.0
         with:
           recursive: true
           failure-threshold: error
