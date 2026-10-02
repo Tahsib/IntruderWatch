@@ -10,7 +10,7 @@ COPY frame_capturer/*.go ./
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o frame_capturer .
 
 # Stage 2: Final Minimal Runtime
-FROM alpine:3.20
+FROM alpine:3.24
 
 WORKDIR /app
 
