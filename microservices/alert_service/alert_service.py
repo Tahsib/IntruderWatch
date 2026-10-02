@@ -272,7 +272,8 @@ def alert_service(queue_name):
             human_count = int(raw_count) if raw_count is not None else 1
             raw_conf = data.get("max_confidence")
             max_confidence = float(raw_conf) if raw_conf is not None else 0.0
-        except Exception:
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError, TypeError) as e:
+            logging.warning(f"Malformed alert payload, using fallback values: {e}")
             camera_id = "unknown"
             timestamp = "unknown"
             filename = ""

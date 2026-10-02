@@ -105,8 +105,8 @@ class AlertDispatcher:
                         "Alert dispatcher buffer saturated: discarded oldest frame to prioritize latest detection."
                     )
                 except queue.Empty:
-                    # Queue was emptied concurrently by the worker thread; nothing to drop
-                    pass
+                    # Queue was emptied concurrently by the worker thread; retry enqueue
+                    continue
 
     def _reset_channel(self):
         try:
