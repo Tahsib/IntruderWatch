@@ -1,57 +1,75 @@
 version: 2
 updates:
-  # GitHub Actions updates
+  # GitHub Actions updates (grouped into a single monthly PR)
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 3
+
+  # Go dependencies (Microservices)
+  - package-ecosystem: "gomod"
+    directory: "/microservices/frame_capturer"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
 
   # Python dependencies (Microservices)
   - package-ecosystem: "pip"
     directory: "/microservices/alert_service"
     schedule:
-      interval: "weekly"
-  - package-ecosystem: "pip"
-    directory: "/microservices/frame_capturer"
-    schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 3
   - package-ecosystem: "pip"
     directory: "/microservices/human_detector"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 3
   - package-ecosystem: "pip"
     directory: "/microservices/viewer_service"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 3
 
   # Python dependencies (Monolith)
   - package-ecosystem: "pip"
     directory: "/monolith"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 3
 
   # Docker dependencies (images in Dockerfiles and docker-compose)
   - package-ecosystem: "docker"
     directory: "/microservices"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 3
   - package-ecosystem: "docker"
     directory: "/monolith"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 3
   - package-ecosystem: "docker"
     directory: "/microservices/alert_service"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 3
   - package-ecosystem: "docker"
     directory: "/microservices/frame_capturer"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 3
   - package-ecosystem: "docker"
     directory: "/microservices/human_detector"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 3
   - package-ecosystem: "docker"
     directory: "/microservices/viewer_service"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 3
