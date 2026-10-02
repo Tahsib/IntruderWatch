@@ -118,22 +118,28 @@ class TestHumanDetectorEdgeCases(unittest.TestCase):
         self.assertTrue(success, "Publish did not succeed after reconnect retry")
         mock_good_channel.basic_publish.assert_called_once()
 
-    def test_alert_dispatcher_queue_full_non_blocking(self):
-        """Edge Case 3: When queue is full, submit drops frame without blocking main thread."""
+    def test_alert_dispatcher_drop_oldest_on_full_queue(self):
+        """Edge Case 3: When queue is full, submit evicts oldest frame (head-drop) to preserve newest frame."""
         dispatcher = AlertDispatcher(save_quality=80, queue_size=2)
         # Do not start worker thread so queue stays full
         frame = np.zeros((10, 10, 3), dtype=np.uint8)
 
         # Fill queue to capacity (2)
-        dispatcher.submit(frame, "file1.jpg", {})
-        dispatcher.submit(frame, "file2.jpg", {})
+        dispatcher.submit(frame, "file1.jpg", {"seq": 1})
+        dispatcher.submit(frame, "file2.jpg", {"seq": 2})
         self.assertEqual(dispatcher.queue.qsize(), 2)
 
-        # 3rd submit must not block or raise exception
+        # 3rd submit must evict file1.jpg and retain file2.jpg and file3.jpg
         t0 = time.time()
-        dispatcher.submit(frame, "file3.jpg", {})
+        dispatcher.submit(frame, "file3.jpg", {"seq": 3})
         elapsed = time.time() - t0
         self.assertLess(elapsed, 0.05, "Submit blocked when queue was full!")
+
+        self.assertEqual(dispatcher.queue.qsize(), 2)
+        item1 = dispatcher.queue.get_nowait()
+        item2 = dispatcher.queue.get_nowait()
+        self.assertEqual(item1[1], "file2.jpg", "Oldest frame was not evicted!")
+        self.assertEqual(item2[1], "file3.jpg", "Newest frame was not preserved!")
 
     def test_wsgi_healthz_and_metrics(self):
         """Edge Case 4: /healthz reflects initialization and liveness status."""

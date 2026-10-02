@@ -81,7 +81,7 @@ class DetectionState:
 class AlertDispatcher:
     """Background worker for non-blocking disk writes and alert queue publishing."""
 
-    def __init__(self, save_quality: int, queue_size: int = 50):
+    def __init__(self, save_quality: int, queue_size: int = 500):
         self.save_quality = save_quality
         self.queue = queue.Queue(maxsize=queue_size)
         self.connection = None
@@ -92,10 +92,20 @@ class AlertDispatcher:
         self.thread.start()
 
     def submit(self, frame: np.ndarray, filename: str, alert_payload: dict):
-        try:
-            self.queue.put_nowait((frame, filename, alert_payload))
-        except queue.Full:
-            logging.error("Alert dispatcher queue full; dropping alert to maintain real-time throughput.")
+        while True:
+            try:
+                self.queue.put_nowait((frame, filename, alert_payload))
+                break
+            except queue.Full:
+                try:
+                    # Drop-Oldest (Head-Drop): evict oldest frame so the latest intruder detection is never lost
+                    _ = self.queue.get_nowait()
+                    self.queue.task_done()
+                    logging.warning(
+                        "Alert dispatcher buffer saturated: discarded oldest frame to prioritize latest detection."
+                    )
+                except queue.Empty:
+                    pass
 
     def _reset_channel(self):
         try:
