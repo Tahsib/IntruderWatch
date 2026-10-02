@@ -1,17 +1,18 @@
 import base64
 import gc
-import hashlib
 import json
 import logging
 import os
+import queue
 import socket
 import threading
 import time
 from datetime import datetime
+from wsgiref.simple_server import make_server
 
 import cv2
 import numpy as np
-from prometheus_client import Counter, Gauge, Histogram, start_http_server
+from prometheus_client import REGISTRY, Counter, Gauge, Histogram, make_wsgi_app
 from shared.rabbitmq_client import connect_rabbitmq
 from ultralytics import YOLO
 
@@ -74,6 +75,64 @@ class DetectionState:
         self.frame_counter = 0
         self.start_time = time.time()
         self.last_frame_time = time.time()
+        self.is_ready = False
+
+
+class AlertDispatcher:
+    """Background worker for non-blocking disk writes and alert queue publishing."""
+
+    def __init__(self, save_quality: int):
+        self.save_quality = save_quality
+        self.queue = queue.Queue(maxsize=100)
+        self.connection = None
+        self.channel = None
+        self.thread = threading.Thread(target=self._worker, daemon=True, name="alert-dispatcher")
+
+    def start(self):
+        self.thread.start()
+
+    def submit(self, frame: np.ndarray, filename: str, alert_payload: dict):
+        try:
+            self.queue.put_nowait((frame, filename, alert_payload))
+        except queue.Full:
+            logging.error("Alert dispatcher queue full; dropping alert to maintain real-time throughput.")
+
+    def _ensure_channel(self):
+        if self.connection is None or self.connection.is_closed or self.channel is None or self.channel.is_closed:
+            logging.info("Connecting alert dispatcher to RabbitMQ...")
+            self.connection, self.channel = connect_rabbitmq(["alert_queue"])
+
+    def _worker(self):
+        while True:
+            try:
+                frame, filename, alert_payload = self.queue.get()
+                try:
+                    detection_dir = os.path.dirname(filename)
+                    os.makedirs(detection_dir, exist_ok=True)
+                    success = cv2.imwrite(filename, frame, [cv2.IMWRITE_JPEG_QUALITY, self.save_quality])
+                    if not success:
+                        logging.error(f"Failed to write image: {filename}")
+
+                    self._ensure_channel()
+                    self.channel.basic_publish(
+                        exchange="",
+                        routing_key="alert_queue",
+                        body=json.dumps(alert_payload),
+                    )
+
+                    camera_id = alert_payload.get("camera", "?")
+                    count = alert_payload.get("human_count", 1)
+                    conf = alert_payload.get("max_confidence", 0.0)
+                    logging.info(
+                        f"*** HUMAN DETECTED (Cam {camera_id}, Count: {count}, Conf: {conf:.2f}) *** Saved to {filename}"
+                    )
+                except Exception as e:
+                    logging.error(f"Error saving or publishing alert: {e}")
+                finally:
+                    self.queue.task_done()
+            except Exception as outer_e:
+                logging.error(f"Unexpected error in alert dispatcher worker: {outer_e}")
+                time.sleep(1)
 
 
 def memory_manager(state):
@@ -94,8 +153,12 @@ def memory_manager(state):
             parked = False
 
 
-def consume_frames(queue_name):
-    state = DetectionState()
+def consume_frames(queue_name: str, state: DetectionState | None = None):
+    if state is None:
+        state = DetectionState()
+
+    alert_dispatcher = AlertDispatcher(save_quality=SAVE_QUALITY)
+    alert_dispatcher.start()
 
     # Staggered initialization: Prevent multiple processes from hitting the GPU at once
     # We use a deterministic delay based on the container hostname (INSTANCE_ID)
@@ -123,6 +186,9 @@ def consume_frames(queue_name):
     connection, channel = connect_rabbitmq(["frame_queue", "alert_queue"])
     channel.basic_qos(prefetch_count=1)
 
+    state.is_ready = True
+    logging.info("Human detector initialized and ready for inference.")
+
     if not os.path.exists("captures"):
         os.makedirs("captures")
         logging.info("Captures directory initialized.")
@@ -149,24 +215,12 @@ def consume_frames(queue_name):
                 logging.info(f"Heartbeat: Processed {state.frame_counter} frames. Uptime: {int(elapsed)}s.")
 
             # Deduplication
-            if last_saved_hashes.get(camera_id) == expected_hash:
+            if expected_hash and last_saved_hashes.get(camera_id) == expected_hash:
                 logging.debug(f"Skipping duplicate {expected_hash[:8]} (Cam {camera_id})")
                 ch.basic_ack(delivery_tag=method.delivery_tag)
                 return
 
             byte_data = base64.b64decode(payload["image"])
-
-            # Simple hash check
-            actual_hash = hashlib.sha256(byte_data).hexdigest()
-            if actual_hash != expected_hash:
-                logging.warning(f"Hash mismatch for camera {camera_id}!")
-                ERRORS_TOTAL.labels(
-                    camera_id=camera_id,
-                    worker_id=INSTANCE_ID,
-                    error_type="hash_mismatch",
-                ).inc()
-                ch.basic_ack(delivery_tag=method.delivery_tag)
-                return
 
             # Decode JPEG
             frame_np = np.frombuffer(byte_data, dtype=np.uint8)
@@ -184,7 +238,7 @@ def consume_frames(queue_name):
 
             with PROCESSING_TIME.labels(camera_id=camera_id, worker_id=INSTANCE_ID).time():
                 with ACTIVE_PROCESSING.labels(worker_id=INSTANCE_ID).track_inprogress():
-                    # Optimized inference: INFERENCE_SIZE (1280) on GPU (device=0)
+                    # Optimized inference: INFERENCE_SIZE on GPU (device=0)
                     # Using half=True (FP16) to double speed and prevent GPU hangs
                     results = model(
                         frame,
@@ -196,42 +250,49 @@ def consume_frames(queue_name):
                         half=True,
                     )[0]
 
-                    human_detected = False
+                    boxes_data = []
                     for box in results.boxes:
-                        human_detected = True
                         x1, y1, x2, y2 = box.xyxy[0].int().tolist()
-                        conf = box.conf[0].item()
+                        conf = float(box.conf[0].item())
+                        boxes_data.append({"box": [x1, y1, x2, y2], "confidence": round(conf, 4)})
                         logging.debug(f"Human detected: Box = ({x1}, {y1}, {x2}, {y2}), Conf = {conf:.4f}")
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                        label = f"Person {int(conf * 100)}%"
+                        cv2.putText(
+                            frame,
+                            label,
+                            (x1, max(y1 - 6, 15)),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.5,
+                            (0, 255, 0),
+                            1,
+                            cv2.LINE_AA,
+                        )
 
-                    if human_detected:
-                        last_saved_hashes[camera_id] = expected_hash
+                    if boxes_data:
+                        if expected_hash:
+                            last_saved_hashes[camera_id] = expected_hash
                         timestamp_dt = datetime.now()
                         timestamp = timestamp_dt.strftime("%Y-%m-%d %H:%M:%S.%f")
 
                         date_only = timestamp.split()[0]
                         detection_dir = os.path.join(f"/app/captures/camera_{camera_id}", date_only)
-                        os.makedirs(detection_dir, exist_ok=True)
 
                         # Save as JPEG (faster and smaller than PNG)
                         filename = f"{detection_dir}/det_{timestamp}_{expected_hash[:8]}_{INSTANCE_ID[:6]}.jpg"
-                        success = cv2.imwrite(filename, frame, [cv2.IMWRITE_JPEG_QUALITY, SAVE_QUALITY])
+                        max_conf = max(b["confidence"] for b in boxes_data)
+                        alert_payload = {
+                            "camera": camera_id,
+                            "timestamp": timestamp,
+                            "filename": filename,
+                            "human_count": len(boxes_data),
+                            "max_confidence": max_conf,
+                            "boxes": boxes_data,
+                        }
 
-                        # Add filename to payload for the alert service
-                        alert_payload = json.dumps(
-                            {
-                                "camera": camera_id,
-                                "timestamp": timestamp,
-                                "filename": filename,
-                            }
-                        )
-                        channel.basic_publish(exchange="", routing_key="alert_queue", body=alert_payload)
-                        HUMANS_DETECTED.labels(camera_id=camera_id, worker_id=INSTANCE_ID).inc(len(results.boxes))
-
-                        if success:
-                            logging.info(f"*** HUMAN DETECTED (Cam {camera_id}) *** Saved to {filename}")
-                        else:
-                            logging.error(f"Failed to save detection for camera {camera_id}")
+                        # Offload disk write and alert queue publishing to background thread
+                        alert_dispatcher.submit(frame, filename, alert_payload)
+                        HUMANS_DETECTED.labels(camera_id=camera_id, worker_id=INSTANCE_ID).inc(len(boxes_data))
 
             FRAMES_PROCESSED.labels(camera_id=camera_id, worker_id=INSTANCE_ID).inc()
             ch.basic_ack(delivery_tag=method.delivery_tag)
@@ -254,11 +315,33 @@ def consume_frames(queue_name):
         connection.close()
 
 
-if __name__ == "__main__":
-    try:
-        start_http_server(8000)
-        logging.info("Prometheus metrics started on 8000")
-    except Exception as e:
-        logging.error(f"Failed to start metrics: {e}")
+def start_http_service(port: int, state: DetectionState):
+    """Starts WSGI server exposing Prometheus /metrics and /healthz liveness probe."""
+    prom_app = make_wsgi_app(REGISTRY)
 
-    consume_frames(queue_name="frame_queue")
+    def wsgi_app(environ, start_response):
+        path = environ.get("PATH_INFO", "")
+        if path in ("/healthz", "/health"):
+            if state.is_ready:
+                start_response("200 OK", [("Content-Type", "text/plain")])
+                return [b"OK\n"]
+            else:
+                start_response("503 Service Unavailable", [("Content-Type", "text/plain")])
+                return [b"INITIALIZING\n"]
+        return prom_app(environ, start_response)
+
+    server = make_server("0.0.0.0", port, wsgi_app)
+    t = threading.Thread(target=server.serve_forever, daemon=True, name="http-service")
+    t.start()
+    logging.info(f"Prometheus metrics and /healthz listening on port {port}")
+    return server
+
+
+if __name__ == "__main__":
+    state = DetectionState()
+    try:
+        start_http_service(8000, state)
+    except Exception as e:
+        logging.error(f"Failed to start HTTP service: {e}")
+
+    consume_frames(queue_name="frame_queue", state=state)

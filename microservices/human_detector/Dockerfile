@@ -37,4 +37,7 @@ RUN python3 -c "from ultralytics import YOLO; YOLO('yolo11m.pt')" \
 
 EXPOSE 8000
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -f http://127.0.0.1:8000/healthz || exit 1
+
 CMD ["python3", "human_detector.py"]

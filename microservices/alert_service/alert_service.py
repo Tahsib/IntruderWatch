@@ -202,7 +202,7 @@ def _dispatch_calls(twilio_client, recipients):
             send_call_alert(twilio_client, recipient.strip())
 
 
-def send_ntfy_photo(camera_id, timestamp, filename):
+def send_ntfy_photo(camera_id, timestamp, filename, human_count=1, max_confidence=0.0):
     # Truncate milliseconds for a cleaner title
     clean_timestamp = timestamp.split(".")[0] if "." in timestamp else timestamp
 
@@ -226,11 +226,21 @@ def send_ntfy_photo(camera_id, timestamp, filename):
             logging.error(f"Could not parse image path for URL: {filename}")
             return
 
+        conf_str = f" ({int(max_confidence * 100)}% conf)" if max_confidence > 0 else ""
+        if human_count > 1:
+            title = f"🚨 INTRUDER: Camera {camera_id} ({human_count} Persons)"
+            message = f"{human_count} persons detected{conf_str} at {clean_timestamp}"
+            tags = "rotating_light,warning,camera"
+        else:
+            title = f"Intruder: Camera {camera_id}"
+            message = f"Person detected{conf_str} at {clean_timestamp}"
+            tags = "rotating_light,camera"
+
         headers = {
-            "Title": f"Intruder: Camera {camera_id}",
-            "Message": f"Detection at {clean_timestamp}",
+            "Title": title,
+            "Message": message,
             "Priority": "5",
-            "Tags": "rotating_light,camera",
+            "Tags": tags,
             "Attach": image_url,
         }
 
@@ -259,14 +269,20 @@ def alert_service(queue_name):
             camera_id = data.get("camera", "unknown")
             timestamp = data.get("timestamp", "unknown")
             filename = data.get("filename", "")
+            human_count = int(data.get("human_count", 1))
+            max_confidence = float(data.get("max_confidence", 0.0))
         except Exception:
             camera_id = "unknown"
             timestamp = "unknown"
             filename = ""
+            human_count = 1
+            max_confidence = 0.0
 
         ALERTS_TOTAL.labels(camera_id=camera_id).inc()
 
-        logging.info(f"!!! ALERT !!! Human detected on Camera {camera_id} at {timestamp}")
+        logging.info(
+            f"!!! ALERT !!! Human detected on Camera {camera_id} (Count: {human_count}, Conf: {max_confidence:.2f}) at {timestamp}"
+        )
 
         # 1. Dispatch ntfy photo alert with per-camera cooldown
         last_cam_ntfy = last_ntfy_times.get(camera_id, 0)
@@ -275,7 +291,7 @@ def alert_service(queue_name):
             logging.info(f"Dispatching ntfy photo alert for Camera {camera_id}")
             threading.Thread(
                 target=send_ntfy_photo,
-                args=(camera_id, timestamp, filename),
+                args=(camera_id, timestamp, filename, human_count, max_confidence),
                 daemon=True,
             ).start()
         else:
