@@ -15,7 +15,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version-file: 'microservices/frame_capturer/go.mod'
           cache-dependency-path: microservices/frame_capturer/go.sum
       - name: Verify Go Vet
         run: |
