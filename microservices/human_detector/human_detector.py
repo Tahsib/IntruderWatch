@@ -105,19 +105,22 @@ class AlertDispatcher:
                         "Alert dispatcher buffer saturated: discarded oldest frame to prioritize latest detection."
                     )
                 except queue.Empty:
+                    # Queue was emptied concurrently by the worker thread; nothing to drop
                     pass
 
     def _reset_channel(self):
         try:
             if self.channel and not self.channel.is_closed:
                 self.channel.close()
-        except Exception:
-            pass
+        except Exception as e:
+            # Channel may already be closed or broken during reset
+            logging.debug(f"Ignoring error closing channel during reset: {e}")
         try:
             if self.connection and not self.connection.is_closed:
                 self.connection.close()
-        except Exception:
-            pass
+        except Exception as e:
+            # Connection may already be closed or broken during reset
+            logging.debug(f"Ignoring error closing connection during reset: {e}")
         self.channel = None
         self.connection = None
 
@@ -203,10 +206,10 @@ def consume_frames(queue_name: str, state: DetectionState | None = None):
     # We use a deterministic delay based on the container hostname (INSTANCE_ID)
     try:
         instance_num = int(INSTANCE_ID.split("_")[-1])
-    except Exception:
+    except (ValueError, IndexError):
         try:
             instance_num = int(INSTANCE_ID.split("-")[-1])
-        except Exception:
+        except (ValueError, IndexError):
             import random
 
             instance_num = random.randint(1, 5)
@@ -354,8 +357,9 @@ def consume_frames(queue_name: str, state: DetectionState | None = None):
         state.is_ready = False
         try:
             connection.close()
-        except Exception:
-            pass
+        except Exception as e:
+            # Broker connection already closed or terminated during teardown
+            logging.debug(f"Ignoring connection close error during shutdown: {e}")
 
 
 def start_http_service(port: int, state: DetectionState):
